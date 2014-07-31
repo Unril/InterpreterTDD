@@ -79,6 +79,9 @@ inline Tokens Tokenize(std::wstring expr) {
     if(expr.empty()) {
         return{};
     }
+    if(expr[0] >= '0' && expr[0] <= '9') {
+        return{ (double) expr[0] - '0' };
+    }
     return{ static_cast<Operator>(expr[0]) };
 }
 
