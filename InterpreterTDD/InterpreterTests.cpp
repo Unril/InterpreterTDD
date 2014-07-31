@@ -8,13 +8,12 @@ using namespace Microsoft::VisualStudio::CppUnitTestFramework;
 using namespace Interpreter;
 using namespace std;
 
-TEST_CLASS(UnitTests) {
+TEST_CLASS(LexerTests) {
 public:
-
-    TEST_METHOD(TestMethod) {
-            
+    TEST_METHOD(Should_return_empty_token_list_when_put_empty_expression) {
+        Tokens tokens = Lexer::Tokenize("");
+        Assert::IsTrue(tokens.empty());
     }
-
 };
 
 }
