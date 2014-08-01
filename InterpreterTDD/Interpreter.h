@@ -168,23 +168,70 @@ inline int PrecedenceOf(Operator op) {
     return (op == Operator::Mul || op == Operator::Div) ? 1 : 0;
 }
 
-inline Tokens Parse(const Tokens &tokens) {
-    Tokens output, stack;
-    auto popToOutput = [&output, &stack](auto whenToEnd) {
-        while(!stack.empty() && !whenToEnd(stack.back())) {
-            output.push_back(stack.back());
-            stack.pop_back();
-        }};
-    for(const Token &current : tokens) {
-        if(current.Type() == TokenType::Operator) {
-            popToOutput([&](Operator top) { return PrecedenceOf(top) < PrecedenceOf(current); });
-            stack.push_back(current);
-            continue;
+namespace Detail {
+
+class ShuntingYardParser {
+public:
+    ShuntingYardParser(const Tokens &tokens) : m_current(tokens.cbegin()), m_end(tokens.cend()) {}
+
+    void Parse() {
+        for(; m_current != m_end; ++m_current) {
+            ParseCurrentToken();
         }
-        output.push_back(current);
+        PopToOutputUntil(StackIsEmpty);
     }
-    popToOutput([](auto) { return false; });
-    return output;
+
+    const Tokens &Result() const {
+        return m_output;
+    }
+
+private:
+    static bool StackIsEmpty() {
+        return false;
+    }
+
+    void ParseCurrentToken() {
+        switch(m_current->Type()) {
+            case TokenType::Operator:
+                ParseOperator();
+                break;
+            case TokenType::Number:
+                ParseNumber();
+                break;
+            default:
+                throw std::out_of_range("TokenType");
+        }
+    }
+
+    void ParseOperator() {
+        PopToOutputUntil([this]() { return PrecedenceOf(m_stack.back()) < PrecedenceOf(*m_current); });
+        m_stack.push_back(*m_current);
+    }
+
+    void ParseNumber() {
+        m_output.push_back(*m_current);
+    }
+
+    template<class T>
+    void PopToOutputUntil(T whenToEnd) {
+        while(!m_stack.empty() && !whenToEnd()) {
+            m_output.push_back(m_stack.back());
+            m_stack.pop_back();
+        }
+    }
+
+    Tokens::const_iterator m_current;
+    Tokens::const_iterator m_end;
+    Tokens m_output;
+    Tokens m_stack;
+};
+
+} // namespace Detail
+
+inline Tokens Parse(const Tokens &tokens) {
+    Detail::ShuntingYardParser parser(tokens);
+    parser.Parse();
+    return parser.Result();
 }
 
 } // namespace Parser
