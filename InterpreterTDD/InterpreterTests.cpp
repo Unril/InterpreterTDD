@@ -29,6 +29,11 @@ static void AreEqual(initializer_list<T> expect, const ActualRange &actual) {
 
 } // namespace AssertRange
 
+static const Token plus(Operator::Plus), minus(Operator::Minus);
+static const Token mul(Operator::Mul), div(Operator::Div);
+static const Token pLeft(Operator::LParen), pRight(Operator::RParen);
+static const Token _1(1), _2(2), _3(3), _4(4), _5(5);
+
 TEST_CLASS(LexerTests) {
 public:
     TEST_METHOD(Should_return_empty_token_list_when_put_empty_expression) {
@@ -38,12 +43,12 @@ public:
 
     TEST_METHOD(Should_tokenize_single_plus_operator) {
         Tokens tokens = Lexer::Tokenize(L"+");
-        AssertRange::AreEqual({ Operator::Plus }, tokens);
+        AssertRange::AreEqual({ plus }, tokens);
     }
 
     TEST_METHOD(Should_tokenize_single_digit) {
         Tokens tokens = Lexer::Tokenize(L"1");
-        AssertRange::AreEqual({ 1.0 }, tokens);
+        AssertRange::AreEqual({ _1 }, tokens);
     }
 
     TEST_METHOD(Should_tokenize_floating_point_number) {
@@ -53,20 +58,17 @@ public:
 
     TEST_METHOD(Should_tokenize_plus_and_number) {
         Tokens tokens = Lexer::Tokenize(L"+12.34");
-        AssertRange::AreEqual({ Token(Operator::Plus), Token(12.34) }, tokens);
+        AssertRange::AreEqual({ plus, Token(12.34) }, tokens);
     }
 
     TEST_METHOD(Should_skip_spaces) {
         Tokens tokens = Lexer::Tokenize(L" 1 +  12.34  ");
-        AssertRange::AreEqual({ Token(1.0), Token(Operator::Plus), Token(12.34) }, tokens);
+        AssertRange::AreEqual({ _1, plus, Token(12.34) }, tokens);
     }
 
     TEST_METHOD(Should_tokenize_complex_experssion) {
         Tokens tokens = Lexer::Tokenize(L"1+2*3/(4-5)");
-        AssertRange::AreEqual({
-            Token(1), Token(Operator::Plus), Token(2), Token(Operator::Mul), Token(3), Token(Operator::Div),
-            Token(Operator::LParen), Token(4), Token(Operator::Minus), Token(5), Token(Operator::RParen)
-        }, tokens);
+        AssertRange::AreEqual({ _1, plus, _2, mul, _3, div, pLeft, _4, minus, _5, pRight }, tokens);
     }
 };
 
@@ -101,18 +103,18 @@ public:
     }
 
     TEST_METHOD(Should_parse_single_number) {
-        Tokens tokens = Parser::Parse({ Token(1) });
-        AssertRange::AreEqual({ Token(1) }, tokens);
+        Tokens tokens = Parser::Parse({ _1 });
+        AssertRange::AreEqual({ _1 }, tokens);
     }
 
     TEST_METHOD(Should_parse_num_plus_num) {
-        Tokens tokens = Parser::Parse({ Token(1), Token(Operator::Plus), Token(2) });
-        AssertRange::AreEqual({ Token(1), Token(2), Token(Operator::Plus) }, tokens);
+        Tokens tokens = Parser::Parse({ _1, plus, _2 });
+        AssertRange::AreEqual({ _1, _2, plus }, tokens);
     }
 
     TEST_METHOD(Should_parse_two_additions) {
-        Tokens tokens = Parser::Parse({ Token(1), Token(Operator::Plus), Token(2), Token(Operator::Plus), Token(3) });
-        AssertRange::AreEqual({ Token(1), Token(2), Token(Operator::Plus), Token(3), Token(Operator::Plus) }, tokens);
+        Tokens tokens = Parser::Parse({ _1, plus, _2, plus, _3 });
+        AssertRange::AreEqual({ _1, _2, plus, _3, plus }, tokens);
     }
 
     TEST_METHOD(Should_get_same_precedence_for_operator_pairs) {
@@ -125,25 +127,23 @@ public:
     }
 
     TEST_METHOD(Should_parse_add_and_mul) {
-        Tokens tokens = Parser::Parse({ Token(1), Token(Operator::Plus), Token(2), Token(Operator::Mul), Token(3) });
-        AssertRange::AreEqual({ Token(1), Token(2), Token(3), Token(Operator::Mul), Token(Operator::Plus) }, tokens);
+        Tokens tokens = Parser::Parse({ _1, plus, _2, mul, _3 });
+        AssertRange::AreEqual({ _1, _2, _3, mul, plus }, tokens);
     }
 
     TEST_METHOD(Should_parse_complex_experssion) {
-        // 1 + 2 / 3 - 4 * 5 = 1 2 3 / + 4 5 * -
-        Tokens tokens = Parser::Parse({
-            Token(1), Token(Operator::Plus), Token(2), Token(Operator::Div), Token(3),
-            Token(Operator::Minus), Token(4), Token(Operator::Mul), Token(5)
-        });
-        AssertRange::AreEqual({
-            Token(1), Token(2), Token(3), Token(Operator::Div), Token(Operator::Plus),
-            Token(4), Token(5), Token(Operator::Mul), Token(Operator::Minus)
-        }, tokens);
+        Tokens tokens = Parser::Parse({ _1, plus, _2, div, _3, minus, _4, mul, _5 });
+        AssertRange::AreEqual({ _1, _2, _3, div, plus, _4, _5, mul, minus }, tokens);
     }
 
-    TEST_METHOD(Should_skip_paren_around_number) {
-        Tokens tokens = Parser::Parse({ Token(Operator::LParen), Token(1), Token(Operator::RParen) });
-        AssertRange::AreEqual({ Token(1) }, tokens);
+    TEST_METHOD(Should_skip_parens_around_number) {
+        Tokens tokens = Parser::Parse({ pLeft, _1, pRight });
+        AssertRange::AreEqual({ _1 }, tokens);
+    }
+
+    TEST_METHOD(Should_parse_expression_with_parens_in_beginning) {
+        Tokens tokens = Parser::Parse({ pLeft, _1, plus, _2, pRight, mul, _3 });
+        AssertRange::AreEqual({ _1, _2, plus, _3, mul }, tokens);
     }
 };
 

@@ -204,17 +204,27 @@ private:
     }
 
     void ParseOperator() {
-        const Operator currOp = *m_current;
-        switch(currOp) {
+        switch(*m_current) {
             case Operator::LParen:
+                m_stack.push_back(*m_current);
                 break;
             case Operator::RParen:
+                PopToOutputUntil([this]() { return LeftParenOnTop(); });
+                m_stack.pop_back();
                 break;
             default:
-                PopToOutputUntil([&]() { return PrecedenceOf(m_stack.back()) < PrecedenceOf(currOp); });
+                PopToOutputUntil([this]() { return LeftParenOnTop() || OperatorWithLessPrecedenceOnTop(); });
                 m_stack.push_back(*m_current);
                 break;
         }
+    }
+
+    bool OperatorWithLessPrecedenceOnTop() const {
+        return PrecedenceOf(m_stack.back()) < PrecedenceOf(*m_current);
+    }
+
+    bool LeftParenOnTop() const {
+        return static_cast<Operator>(m_stack.back()) == Operator::LParen;
     }
 
     void ParseNumber() {
