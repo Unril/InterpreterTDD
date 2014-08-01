@@ -170,19 +170,20 @@ inline int PrecedenceOf(Operator op) {
 
 inline Tokens Parse(const Tokens &tokens) {
     Tokens output, stack;
-    auto popAll = [&]() { while(!stack.empty()) {
-        output.push_back(stack.back());
-        stack.pop_back();
-    }};
-    for(const Token &token : tokens) {
-        if(token.Type() == TokenType::Operator) {
-            popAll();
-            stack.push_back(token);
+    auto popToOutput = [&output, &stack](auto whenToEnd) {
+        while(!stack.empty() && !whenToEnd(stack.back())) {
+            output.push_back(stack.back());
+            stack.pop_back();
+        }};
+    for(const Token &current : tokens) {
+        if(current.Type() == TokenType::Operator) {
+            popToOutput([&](Operator top) { return PrecedenceOf(top) < PrecedenceOf(current); });
+            stack.push_back(current);
             continue;
         }
-        output.push_back(token);
+        output.push_back(current);
     }
-    popAll();
+    popToOutput([](auto) { return false; });
     return output;
 }
 

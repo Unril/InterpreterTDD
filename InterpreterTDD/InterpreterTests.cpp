@@ -123,6 +123,12 @@ public:
     TEST_METHOD(Should_get_greater_precedence_for_multiplicative_operators) {
         Assert::IsTrue(Parser::PrecedenceOf(Operator::Mul) > Parser::PrecedenceOf(Operator::Plus));
     }
+
+    TEST_METHOD(Should_parse_add_and_mul) {
+        Tokens tokens = Parser::Parse({ Token(1), Token(Operator::Plus), Token(2), Token(Operator::Mul), Token(3) });
+        AssertRange::AreEqual({ Token(1), Token(2), Token(3), Token(Operator::Mul), Token(Operator::Plus) }, tokens);
+    }
+
 };
 
 }
