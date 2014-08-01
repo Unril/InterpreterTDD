@@ -99,6 +99,16 @@ public:
         Tokens tokens = Parser::Parse({});
         Assert::IsTrue(tokens.empty());
     }
+
+    TEST_METHOD(Should_parse_single_number) {
+        Tokens tokens = Parser::Parse({ Token(1) });
+        AssertRange::AreEqual({ Token(1) }, tokens);
+    }
+
+    TEST_METHOD(Should_parse_num_plus_num) {
+        Tokens tokens = Parser::Parse({ Token(1), Token(Operator::Plus), Token(2) });
+        AssertRange::AreEqual({ Token(1), Token(2), Token(Operator::Plus) }, tokens);
+    }
 };
 
 }
