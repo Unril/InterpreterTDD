@@ -114,6 +114,12 @@ public:
         Tokens tokens = Parser::Parse({ Token(1), Token(Operator::Plus), Token(2), Token(Operator::Plus), Token(3) });
         AssertRange::AreEqual({ Token(1), Token(2), Token(Operator::Plus), Token(3), Token(Operator::Plus) }, tokens);
     }
+
+    TEST_METHOD(Should_get_same_precedence_for_operator_pairs) {
+        Assert::AreEqual(Parser::PrecedenceOf(Operator::Plus), Parser::PrecedenceOf(Operator::Minus));
+        Assert::AreEqual(Parser::PrecedenceOf(Operator::Mul), Parser::PrecedenceOf(Operator::Div));        
+    }
+
 };
 
 }

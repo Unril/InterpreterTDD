@@ -164,6 +164,10 @@ inline Tokens Tokenize(const std::wstring &expr) {
 
 namespace Parser {
 
+inline int PrecedenceOf(Operator) {
+    return 0;
+}
+
 inline Tokens Parse(const Tokens &tokens) {
     Tokens output, stack;
     auto popAll = [&]() { while(!stack.empty()) {
