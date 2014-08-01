@@ -56,6 +56,11 @@ public:
         Tokens tokens = Lexer::Tokenize(L"+12.34");
         AssertRange::AreEqual({ Token(Operator::Plus), Token(12.34) }, tokens);
     }
+
+    TEST_METHOD(Should_skip_spaces) {
+        Tokens tokens = Lexer::Tokenize(L" 1 +  12.34  ");
+        AssertRange::AreEqual({ Token(1.0), Token(Operator::Plus), Token(12.34) }, tokens);
+    }
 };
 
 TEST_CLASS(TokenTests) {
