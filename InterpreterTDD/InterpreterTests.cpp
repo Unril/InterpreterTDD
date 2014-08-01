@@ -93,4 +93,12 @@ public:
     }
 };
 
+TEST_CLASS(ParserTests) {
+public:
+    TEST_METHOD(Should_return_empty_list_when_put_empty_list) {
+        Tokens tokens = Parser::Parse({});
+        Assert::IsTrue(tokens.empty());
+    }
+};
+
 }

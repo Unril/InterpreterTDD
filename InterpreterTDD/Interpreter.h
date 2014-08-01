@@ -161,4 +161,13 @@ inline Tokens Tokenize(const std::wstring &expr) {
 }
 
 } // namespace Lexer
+
+namespace Parser {
+
+inline Tokens Parse(const Tokens &tokens) {
+    return{};
+}
+
+} // namespace Parser
+
 } // namespace Interpreter
