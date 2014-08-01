@@ -109,6 +109,11 @@ public:
         Tokens tokens = Parser::Parse({ Token(1), Token(Operator::Plus), Token(2) });
         AssertRange::AreEqual({ Token(1), Token(2), Token(Operator::Plus) }, tokens);
     }
+
+    TEST_METHOD(Should_parse_two_additions) {
+        Tokens tokens = Parser::Parse({ Token(1), Token(Operator::Plus), Token(2), Token(Operator::Plus), Token(3) });
+        AssertRange::AreEqual({ Token(1), Token(2), Token(Operator::Plus), Token(3), Token(Operator::Plus) }, tokens);
+    }
 };
 
 }

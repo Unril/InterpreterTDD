@@ -165,17 +165,20 @@ inline Tokens Tokenize(const std::wstring &expr) {
 namespace Parser {
 
 inline Tokens Parse(const Tokens &tokens) {
-    Tokens output;
-    Tokens stack;
+    Tokens output, stack;
+    auto popAll = [&]() { while(!stack.empty()) {
+        output.push_back(stack.back());
+        stack.pop_back();
+    }};
     for(const Token &token : tokens) {
-        if(token.Type() == TokenType::Number) {
-            output.push_back(token);
-        }
-        else {
+        if(token.Type() == TokenType::Operator) {
+            popAll();
             stack.push_back(token);
+            continue;
         }
+        output.push_back(token);
     }
-    std::copy(stack.crbegin(), stack.crend(), std::back_inserter(output));
+    popAll();
     return output;
 }
 
