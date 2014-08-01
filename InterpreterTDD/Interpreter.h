@@ -178,7 +178,12 @@ public:
         for(; m_current != m_end; ++m_current) {
             ParseCurrentToken();
         }
-        PopToOutputUntil(StackIsEmpty);
+        PopToOutputUntil([this]() {
+            if(m_stack.back() == Token(Operator::LParen)) {
+                throw std::logic_error("Closing paren not found.");
+            }
+            return false;
+        });
     }
 
     const Tokens &Result() const {
@@ -186,10 +191,6 @@ public:
     }
 
 private:
-    static bool StackIsEmpty() {
-        return false;
-    }
-
     void ParseCurrentToken() {
         switch(m_current->Type()) {
             case TokenType::Operator:
@@ -210,6 +211,9 @@ private:
                 break;
             case Operator::RParen:
                 PopToOutputUntil([this]() { return LeftParenOnTop(); });
+                if(m_stack.empty() || m_stack.back() != Operator::LParen) {
+                    throw std::logic_error("Opening paren not found.");
+                }
                 m_stack.pop_back();
                 break;
             default:

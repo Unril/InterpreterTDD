@@ -145,6 +145,14 @@ public:
         Tokens tokens = Parser::Parse({ pLeft, _1, plus, _2, pRight, mul, _3 });
         AssertRange::AreEqual({ _1, _2, plus, _3, mul }, tokens);
     }
+
+    TEST_METHOD(Should_throw_when_opening_paren_not_found) {
+        Assert::ExpectException<std::logic_error>([]() {Parser::Parse({ _1, pRight }); });
+    }
+
+    TEST_METHOD(Should_throw_when_closing_paren_not_found) {
+        Assert::ExpectException<std::logic_error>([]() {Parser::Parse({ pLeft, _1 }); });
+    }
 };
 
 }
