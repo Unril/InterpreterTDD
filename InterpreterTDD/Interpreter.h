@@ -164,8 +164,8 @@ inline Tokens Tokenize(const std::wstring &expr) {
 
 namespace Parser {
 
-inline int PrecedenceOf(Operator) {
-    return 0;
+inline int PrecedenceOf(Operator op) {
+    return (op == Operator::Mul || op == Operator::Div) ? 1 : 0;
 }
 
 inline Tokens Parse(const Tokens &tokens) {
