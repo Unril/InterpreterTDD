@@ -129,6 +129,17 @@ public:
         AssertRange::AreEqual({ Token(1), Token(2), Token(3), Token(Operator::Mul), Token(Operator::Plus) }, tokens);
     }
 
+    TEST_METHOD(Should_parse_complex_experssion) {
+        // 1 + 2 / 3 - 4 * 5 = 1 2 3 / + 4 5 * -
+        Tokens tokens = Parser::Parse({
+            Token(1), Token(Operator::Plus), Token(2), Token(Operator::Div), Token(3),
+            Token(Operator::Minus), Token(4), Token(Operator::Mul), Token(5)
+        });
+        AssertRange::AreEqual({
+            Token(1), Token(2), Token(3), Token(Operator::Div), Token(Operator::Plus),
+            Token(4), Token(5), Token(Operator::Mul), Token(Operator::Minus)
+        }, tokens);
+    }
 };
 
 }
