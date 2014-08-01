@@ -140,6 +140,11 @@ public:
             Token(4), Token(5), Token(Operator::Mul), Token(Operator::Minus)
         }, tokens);
     }
+
+    TEST_METHOD(Should_skip_paren_around_number) {
+        Tokens tokens = Parser::Parse({ Token(Operator::LParen), Token(1), Token(Operator::RParen) });
+        AssertRange::AreEqual({ Token(1) }, tokens);
+    }
 };
 
 }
