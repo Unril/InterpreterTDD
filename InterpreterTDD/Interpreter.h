@@ -1,12 +1,17 @@
 #pragma once;
 #include <vector>
-#include <assert.h>
 #include <wchar.h>
+#include <algorithm>
 
 namespace Interpreter {
 
 enum class Operator : wchar_t {
     Plus = L'+',
+    Minus = L'-',
+    Mul = L'*',
+    Div = L'/',
+    LParen = L'(',
+    RParen = L')',
 };
 
 inline std::wstring ToString(const Operator &op) {
@@ -25,7 +30,7 @@ inline std::wstring ToString(const TokenType &type) {
         case TokenType::Number:
             return L"Number";
         default:
-            return L"Unknown token type";
+            throw std::out_of_range("TokenType");
     }
 }
 
@@ -130,7 +135,8 @@ private:
     }
 
     bool IsOperator() const {
-        return *m_current == static_cast<wchar_t>(Operator::Plus);
+        auto all = { Operator::Plus, Operator::Minus, Operator::Mul, Operator::Div, Operator::LParen, Operator::RParen };
+        return std::any_of(all.begin(), all.end(), [this](Operator o) {return *m_current == static_cast<wchar_t>(o); });
     }
 
     void ScanOperator() {

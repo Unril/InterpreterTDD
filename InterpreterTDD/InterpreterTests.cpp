@@ -1,9 +1,8 @@
 #include "stdafx.h"
+
 #include "CppUnitTest.h"
+
 #include "Interpreter.h"
-#include <initializer_list>
-#include <algorithm>
-#include <string>
 
 #pragma warning(disable: 4505)
 
@@ -60,6 +59,14 @@ public:
     TEST_METHOD(Should_skip_spaces) {
         Tokens tokens = Lexer::Tokenize(L" 1 +  12.34  ");
         AssertRange::AreEqual({ Token(1.0), Token(Operator::Plus), Token(12.34) }, tokens);
+    }
+
+    TEST_METHOD(Should_tokenize_complex_experssion) {
+        Tokens tokens = Lexer::Tokenize(L"1+2*3/(4-5)");
+        AssertRange::AreEqual({
+            Token(1), Token(Operator::Plus), Token(2), Token(Operator::Mul), Token(3), Token(Operator::Div),
+            Token(Operator::LParen), Token(4), Token(Operator::Minus), Token(5), Token(Operator::RParen)
+        }, tokens);
     }
 };
 
