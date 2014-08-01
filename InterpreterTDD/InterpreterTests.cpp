@@ -153,6 +153,12 @@ public:
     TEST_METHOD(Should_throw_when_closing_paren_not_found) {
         Assert::ExpectException<std::logic_error>([]() {Parser::Parse({ pLeft, _1 }); });
     }
+
+    TEST_METHOD(Should_parse_complex_experssion_with_paren) {
+        // (1+2)*(3/(4-5)) = 1 2 + 3 4 5 - / *
+        Tokens tokens = Parser::Parse({ pLeft, _1, plus, _2, pRight, mul, pLeft, _3, div, pLeft, _4, minus, _5, pRight, pRight });
+        AssertRange::AreEqual({ _1, _2, plus, _3, _4, _5, minus, div, mul }, tokens);
+    }
 };
 
 }
