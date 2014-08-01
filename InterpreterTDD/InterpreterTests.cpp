@@ -46,6 +46,16 @@ public:
         Tokens tokens = Lexer::Tokenize(L"1");
         AssertRange::AreEqual({ 1.0 }, tokens);
     }
+
+    TEST_METHOD(Should_tokenize_floating_point_number) {
+        Tokens tokens = Lexer::Tokenize(L"12.34");
+        AssertRange::AreEqual({ 12.34 }, tokens);
+    }
+
+    TEST_METHOD(Should_tokenize_plus_and_number) {
+        Tokens tokens = Lexer::Tokenize(L"+12.34");
+        AssertRange::AreEqual({ Token(Operator::Plus), Token(12.34) }, tokens);
+    }
 };
 
 TEST_CLASS(TokenTests) {

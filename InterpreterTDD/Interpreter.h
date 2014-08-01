@@ -1,6 +1,7 @@
 #pragma once;
 #include <vector>
 #include <assert.h>
+#include <wchar.h>
 
 namespace Interpreter {
 
@@ -52,6 +53,20 @@ public:
         return m_number;
     }
 
+    friend inline bool operator==(const Token &left, const Token &right) {
+        if(left.m_type == right.m_type) {
+            switch(left.m_type) {
+                case Interpreter::TokenType::Operator:
+                    return left.m_operator == right.m_operator;
+                case Interpreter::TokenType::Number:
+                    return left.m_number == right.m_number;
+                default:
+                    throw std::out_of_range("TokenType");
+            }
+        }
+        return false;
+    }
+
 private:
     TokenType m_type;
     union {
@@ -67,7 +82,7 @@ inline std::wstring ToString(const Token &token) {
         case TokenType::Operator:
             return ToString(static_cast<Operator>(token));
         default:
-            "Unknown token.";
+            throw std::out_of_range("TokenType");
     }
 }
 
@@ -76,13 +91,20 @@ typedef std::vector<Token> Tokens;
 namespace Lexer {
 
 inline Tokens Tokenize(std::wstring expr) {
-    if(expr.empty()) {
-        return{};
+    Tokens result;
+    const wchar_t *current = expr.c_str();
+    while(*current) {
+        if(iswdigit(*current)) {
+            wchar_t *end = nullptr;
+            result.push_back(wcstod(current, &end));
+            current = end;
+        }
+        else {
+            result.push_back(static_cast<Operator>(*current));
+            ++current;
+        }
     }
-    if(expr[0] >= '0' && expr[0] <= '9') {
-        return{ (double) expr[0] - '0' };
-    }
-    return{ static_cast<Operator>(expr[0]) };
+    return result;
 }
 
 } // namespace Lexer
