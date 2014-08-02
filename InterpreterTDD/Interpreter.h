@@ -2,6 +2,8 @@
 #include <vector>
 #include <wchar.h>
 #include <algorithm>
+#include <functional>
+#include <map>
 
 namespace Interpreter {
 
@@ -253,10 +255,8 @@ private:
         }
     }
 
-    Tokens::const_iterator m_current;
-    Tokens::const_iterator m_end;
-    Tokens m_output;
-    Tokens m_stack;
+    Tokens::const_iterator m_current, m_end;
+    Tokens m_output, m_stack;
 };
 
 } // namespace Detail
@@ -271,29 +271,76 @@ inline Tokens Parse(const Tokens &tokens) {
 
 namespace Evaluator {
 
-inline double Evaluate(const Tokens &tokens) {
-    std::vector<double> result{ 0 };
-    auto pop = [&]() { double d = result.back(); result.pop_back(); return d; };
-    for(const Token &token : tokens) {
-        if(token.Type() == TokenType::Number) {
-            result.push_back(token);
-        }
-        else if(token == Token(Operator::Plus)) {
-            result.push_back(pop() + pop());
-        }
-        else if(token == Token(Operator::Mul)) {
-            result.push_back(pop() * pop());
-        }
-        else if(token == Token(Operator::Minus)) {
-            double d = pop();
-            result.push_back(pop() - d);
-        }
-        else if(token == Token(Operator::Div)) {
-            double d = pop();
-            result.push_back(pop() / d);
+namespace Detail {
+
+class StackEvaluator {
+public:
+    StackEvaluator(const Tokens &tokens) : m_current(tokens.cbegin()), m_end(tokens.cend()) {}
+
+    void Evaluate() {
+        for(; m_current != m_end; ++m_current) {
+            EvaluateCurrentToken();
         }
     }
-    return pop();
+
+    double Result() const {
+        return m_stack.empty() ? 0 : m_stack.back();
+    }
+
+private:
+    void EvaluateCurrentToken() {
+        switch(m_current->Type()) {
+            case TokenType::Operator:
+                EvaluateOperator();
+                break;
+            case TokenType::Number:
+                EvaluateNumber();
+                break;
+            default:
+                throw std::out_of_range("TokenType");
+        }
+    }
+
+    void EvaluateOperator() {
+        double second = PopOperand();
+        double first = PopOperand();
+        m_stack.push_back(BinaryFunctionFor(*m_current)(first, second));
+    }
+
+    void EvaluateNumber() {
+        m_stack.push_back(*m_current);
+    }
+
+    double PopOperand() {
+        double back = m_stack.back();
+        m_stack.pop_back();
+        return back;
+    }
+
+    static const std::function<double(double, double)> &BinaryFunctionFor(Operator op) {
+        static const std::map<Operator, std::function<double(double, double)>> functions{
+                { Operator::Plus, std::plus<double>() },
+                { Operator::Minus, std::minus<double>() },
+                { Operator::Mul, std::multiplies<double>() },
+                { Operator::Div, std::divides<double>() },
+        };
+        auto found = functions.find(op);
+        if(found == functions.cend()) {
+            throw std::logic_error("Operator not found.");
+        }
+        return found->second;
+    }
+
+    Tokens::const_iterator m_current, m_end;
+    std::vector<double> m_stack;
+};
+
+} // namespace Detail
+
+inline double Evaluate(const Tokens &tokens) {
+    Detail::StackEvaluator evaluator(tokens);
+    evaluator.Evaluate();
+    return evaluator.Result();
 }
 
 } // namespace Evaluator
