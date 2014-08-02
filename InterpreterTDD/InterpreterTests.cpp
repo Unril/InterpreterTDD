@@ -167,6 +167,11 @@ public:
         double result = Evaluator::Evaluate({});
         Assert::AreEqual(0.0, result);
     }
+
+    TEST_METHOD(Should_return_number_when_evaluete_list_with_number) {
+        double result = Evaluator::Evaluate({ _1 });
+        Assert::AreEqual(1.0, result);
+    }
 };
 
 }
