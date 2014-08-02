@@ -200,4 +200,17 @@ public:
     }
 };
 
+TEST_CLASS(InterpreterIntegrationTests) {
+public:
+    TEST_METHOD(Should_interprete_empty_experssion) {
+        double result = Interpreter::InterpreteExperssion(L"  ");
+        Assert::AreEqual(0.0, result);
+    }
+
+    TEST_METHOD(Should_interprete_experssion) {
+        double result = Interpreter::InterpreteExperssion(L"1+2");
+        Assert::AreEqual(3.0, result);
+    }
+};
+
 }

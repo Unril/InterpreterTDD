@@ -345,4 +345,8 @@ inline double Evaluate(const Tokens &tokens) {
 
 } // namespace Evaluator
 
+inline double InterpreteExperssion(const std::wstring &expression) {
+    return Evaluator::Evaluate(Parser::Parse(Lexer::Tokenize(expression)));
+}
+
 } // namespace Interpreter
