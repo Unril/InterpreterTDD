@@ -269,4 +269,12 @@ inline Tokens Parse(const Tokens &tokens) {
 
 } // namespace Parser
 
+namespace Evaluator {
+
+inline double Evaluate(Tokens) {
+    return 0;
+}
+
+} // namespace Evaluator
+
 } // namespace Interpreter

@@ -161,4 +161,12 @@ public:
     }
 };
 
+TEST_CLASS(EvaluatorTests) {
+public:
+    TEST_METHOD(Should_return_zero_when_evaluete_empty_list) {
+        double result = Evaluator::Evaluate({});
+        Assert::AreEqual(0.0, result);
+    }
+};
+
 }
