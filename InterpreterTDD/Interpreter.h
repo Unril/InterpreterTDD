@@ -4,6 +4,7 @@
 #include <algorithm>
 #include <functional>
 #include <map>
+#include <memory>
 
 namespace Interpreter {
 
@@ -20,78 +21,124 @@ inline std::wstring ToString(const Operator &op) {
     return{ static_cast<wchar_t>(op) };
 }
 
-enum class TokenType {
-    Operator,
-    Number
+struct TokenVisitor {
+    virtual void VisitNumber(double) {}
+
+    virtual void VisitOperator(Operator) {}
+
+protected:
+    ~TokenVisitor() {}
 };
 
-inline std::wstring ToString(const TokenType &type) {
-    switch(type) {
-        case TokenType::Operator:
-            return L"Operator";
-        case TokenType::Number:
-            return L"Number";
-        default:
-            throw std::out_of_range("TokenType");
-    }
-}
-
 class Token {
+    struct TokenConcept {
+        virtual ~TokenConcept() {}
+
+        virtual void Accept(TokenVisitor &) const = 0;
+
+        virtual std::wstring ToString() const = 0;
+
+        virtual bool Equals(const TokenConcept &other) const = 0;
+
+        virtual bool EqualsToNumber(double) const {
+            return false;
+        }
+
+        virtual bool EqualsToOperator(Operator) const {
+            return false;
+        }
+
+        virtual double ToNumber() const {
+            throw std::logic_error("Invalid token type");
+        }
+
+        virtual Operator ToOperator() const {
+            throw std::logic_error("Invalid token type");
+        }
+    };
+
+    struct NumberToken : TokenConcept {
+        NumberToken(double val) : m_number(val) {}
+
+        void Accept(TokenVisitor &visitor) const override {
+            visitor.VisitNumber(m_number);
+        }
+
+        std::wstring ToString() const override {
+            return std::to_wstring(m_number);
+        }
+
+        bool EqualsToNumber(double value) const override {
+            return value == m_number;
+        }
+
+        bool Equals(const TokenConcept &other) const {
+            return other.EqualsToNumber(m_number);
+        }
+
+        double ToNumber() const override {
+            return m_number;
+        }
+
+    private:
+        double m_number;
+    };
+
+    struct OperatorToken : TokenConcept {
+        OperatorToken(Operator val) : m_operator(val) {}
+
+        void Accept(TokenVisitor &visitor) const override {
+            visitor.VisitOperator(m_operator);
+        }
+
+        std::wstring ToString() const override {
+            return Interpreter::ToString(m_operator);
+        }
+
+        bool EqualsToOperator(Operator value) const  override {
+            return value == m_operator;
+        }
+
+        bool Equals(const TokenConcept &other) const {
+            return other.EqualsToOperator(m_operator);
+        }
+
+        Operator ToOperator() const override {
+            return m_operator;
+        }
+
+    private:
+        Operator m_operator;
+    };
+
 public:
-    Token(Operator op) :m_type(TokenType::Operator), m_operator(op) {}
+    Token(Operator val) : m_concept(std::make_shared<OperatorToken>(val)) {}
 
-    Token(double num) :m_type(TokenType::Number), m_number(num) {}
+    Token(double val) : m_concept(std::make_shared<NumberToken>(val)) {}
 
-    TokenType Type() const {
-        return m_type;
+    void Accept(TokenVisitor &visitor) const {
+        m_concept->Accept(visitor);
     }
 
     operator Operator() const {
-        if(m_type != TokenType::Operator) {
-            throw std::logic_error("Should be operator token.");
-        }
-        return m_operator;
+        return m_concept->ToOperator();
     }
 
     operator double() const {
-        if(m_type != TokenType::Number) {
-            throw std::logic_error("Should be number token.");
-        }
-        return m_number;
+        return m_concept->ToNumber();
     }
 
     friend inline bool operator==(const Token &left, const Token &right) {
-        if(left.m_type == right.m_type) {
-            switch(left.m_type) {
-                case Interpreter::TokenType::Operator:
-                    return left.m_operator == right.m_operator;
-                case Interpreter::TokenType::Number:
-                    return left.m_number == right.m_number;
-                default:
-                    throw std::out_of_range("TokenType");
-            }
-        }
-        return false;
+        return left.m_concept->Equals(*right.m_concept);
+    }
+
+    friend inline std::wstring ToString(const Token &token) {
+        return token.m_concept->ToString();
     }
 
 private:
-    TokenType m_type;
-    union {
-        Operator m_operator;
-        double m_number;
-    };
+    std::shared_ptr<const TokenConcept> m_concept;
 };
-
-inline std::wstring ToString(const Token &token) {
-    switch(token.Type()) {
-        case TokenType::Number:
-            return std::to_wstring(static_cast<double>(token));
-        case TokenType::Operator:
-            return ToString(static_cast<Operator>(token));
-        default:
-            throw std::out_of_range("TokenType");
-    }
-}
 
 typedef std::vector<Token> Tokens;
 
@@ -172,13 +219,11 @@ inline int PrecedenceOf(Operator op) {
 
 namespace Detail {
 
-class ShuntingYardParser {
+class ShuntingYardParser : TokenVisitor {
 public:
-    ShuntingYardParser(const Tokens &tokens) : m_current(tokens.cbegin()), m_end(tokens.cend()) {}
-
-    void Parse() {
-        for(; m_current != m_end; ++m_current) {
-            ParseCurrentToken();
+    void Parse(const Tokens &tokens) {
+        for(const Token &token : tokens) {
+            token.Accept(*this);
         }
         PopToOutputUntil([this]() {return StackHasNoOperators(); });
     }
@@ -188,17 +233,24 @@ public:
     }
 
 private:
-    void ParseCurrentToken() {
-        switch(m_current->Type()) {
-            case TokenType::Operator:
-                ParseOperator();
+    void VisitOperator(Operator op) override {
+        switch(op) {
+            case Operator::LParen:
+                PushCurrentToStack(op);
                 break;
-            case TokenType::Number:
-                ParseNumber();
+            case Operator::RParen:
+                PopToOutputUntil([this]() { return LeftParenOnTop(); });
+                PopLeftParen();
                 break;
             default:
-                throw std::out_of_range("TokenType");
+                PopToOutputUntil([&]() { return LeftParenOnTop() || OperatorWithLessPrecedenceOnTop(op); });
+                PushCurrentToStack(op);
+                break;
         }
+    }
+
+    void VisitNumber(double number) override {
+        m_output.emplace_back(number);
     }
 
     bool StackHasNoOperators() const {
@@ -208,24 +260,8 @@ private:
         return false;
     }
 
-    void ParseOperator() {
-        switch(*m_current) {
-            case Operator::LParen:
-                PushCurrentToStack();
-                break;
-            case Operator::RParen:
-                PopToOutputUntil([this]() { return LeftParenOnTop(); });
-                PopLeftParen();
-                break;
-            default:
-                PopToOutputUntil([this]() { return LeftParenOnTop() || OperatorWithLessPrecedenceOnTop(); });
-                PushCurrentToStack();
-                break;
-        }
-    }
-
-    void PushCurrentToStack() {
-        return m_stack.push_back(*m_current);
+    void PushCurrentToStack(Operator op) {
+        return m_stack.emplace_back(op);
     }
 
     void PopLeftParen() {
@@ -235,16 +271,12 @@ private:
         m_stack.pop_back();
     }
 
-    bool OperatorWithLessPrecedenceOnTop() const {
-        return PrecedenceOf(m_stack.back()) < PrecedenceOf(*m_current);
+    bool OperatorWithLessPrecedenceOnTop(Operator op) const {
+        return PrecedenceOf(m_stack.back()) < PrecedenceOf(op);
     }
 
     bool LeftParenOnTop() const {
         return static_cast<Operator>(m_stack.back()) == Operator::LParen;
-    }
-
-    void ParseNumber() {
-        m_output.push_back(*m_current);
     }
 
     template<class T>
@@ -255,15 +287,14 @@ private:
         }
     }
 
-    Tokens::const_iterator m_current, m_end;
     Tokens m_output, m_stack;
 };
 
 } // namespace Detail
 
 inline Tokens Parse(const Tokens &tokens) {
-    Detail::ShuntingYardParser parser(tokens);
-    parser.Parse();
+    Detail::ShuntingYardParser parser;
+    parser.Parse(tokens);
     return parser.Result();
 }
 
@@ -273,13 +304,11 @@ namespace Evaluator {
 
 namespace Detail {
 
-class StackEvaluator {
+class StackEvaluator : TokenVisitor {
 public:
-    StackEvaluator(const Tokens &tokens) : m_current(tokens.cbegin()), m_end(tokens.cend()) {}
-
-    void Evaluate() {
-        for(; m_current != m_end; ++m_current) {
-            EvaluateCurrentToken();
+    void Evaluate(const Tokens &tokens) {
+        for(const Token &token : tokens) {
+            token.Accept(*this);
         }
     }
 
@@ -288,27 +317,14 @@ public:
     }
 
 private:
-    void EvaluateCurrentToken() {
-        switch(m_current->Type()) {
-            case TokenType::Operator:
-                EvaluateOperator();
-                break;
-            case TokenType::Number:
-                EvaluateNumber();
-                break;
-            default:
-                throw std::out_of_range("TokenType");
-        }
-    }
-
-    void EvaluateOperator() {
+    void VisitOperator(Operator op) override {
         double second = PopOperand();
         double first = PopOperand();
-        m_stack.push_back(BinaryFunctionFor(*m_current)(first, second));
+        m_stack.push_back(BinaryFunctionFor(op)(first, second));
     }
 
-    void EvaluateNumber() {
-        m_stack.push_back(*m_current);
+    void VisitNumber(double number) override {
+        m_stack.push_back(number);
     }
 
     double PopOperand() {
@@ -331,15 +347,14 @@ private:
         return found->second;
     }
 
-    Tokens::const_iterator m_current, m_end;
     std::vector<double> m_stack;
 };
 
 } // namespace Detail
 
 inline double Evaluate(const Tokens &tokens) {
-    Detail::StackEvaluator evaluator(tokens);
-    evaluator.Evaluate();
+    Detail::StackEvaluator evaluator;
+    evaluator.Evaluate(tokens);
     return evaluator.Result();
 }
 

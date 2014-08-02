@@ -74,14 +74,16 @@ public:
 
 TEST_CLASS(TokenTests) {
 public:
-    TEST_METHOD(Should_get_type_for_operator_token) {
-        Token opToken(Operator::Plus);
-        Assert::AreEqual(TokenType::Operator, opToken.Type());
+    TEST_METHOD(Should_check_for_equality_operator_tokens) {
+        Assert::AreEqual(minus, minus);
+        Assert::AreNotEqual(minus, plus);
+        Assert::AreNotEqual(minus, _1);
     }
 
-    TEST_METHOD(Should_get_type_for_number_token) {
-        Token numToken(1.2);
-        Assert::AreEqual(TokenType::Number, numToken.Type());
+    TEST_METHOD(Should_check_for_equality_number_tokens) {
+        Assert::AreEqual(_1, _1);
+        Assert::AreNotEqual(_1, _2);
+        Assert::AreNotEqual(_1, minus);
     }
 
     TEST_METHOD(Should_get_operator_code_from_operator_token) {
