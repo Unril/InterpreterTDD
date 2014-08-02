@@ -272,11 +272,20 @@ inline Tokens Parse(const Tokens &tokens) {
 namespace Evaluator {
 
 inline double Evaluate(const Tokens &tokens) {
-    double result = 0;
+    std::vector<double> result{ 0 };
+    auto pop = [&]() { double d = result.back(); result.pop_back(); return d; };
     for(const Token &token : tokens) {
-        result = token;
+        if(token.Type() == TokenType::Number) {
+            result.push_back(token);
+        }
+        else if(token == Token(Operator::Plus)) {
+            result.push_back(pop() + pop());
+        }
+        else if(token == Token(Operator::Mul)) {
+            result.push_back(pop() * pop());
+        }
     }
-    return result;
+    return pop();
 }
 
 } // namespace Evaluator

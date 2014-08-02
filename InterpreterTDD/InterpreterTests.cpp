@@ -172,6 +172,16 @@ public:
         double result = Evaluator::Evaluate({ _1 });
         Assert::AreEqual(1.0, result);
     }
+
+    TEST_METHOD(Should_eval_expression_with_one_operator) {
+        double result = Evaluator::Evaluate({ _1, _2, plus });
+        Assert::AreEqual(3.0, result);
+    }
+
+    TEST_METHOD(Should_eval_expression_with_one_multiplication) {
+        double result = Evaluator::Evaluate({ _2, _3, mul });
+        Assert::AreEqual(6.0, result);
+    }
 };
 
 }
