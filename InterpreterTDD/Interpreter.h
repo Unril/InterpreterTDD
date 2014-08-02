@@ -284,6 +284,14 @@ inline double Evaluate(const Tokens &tokens) {
         else if(token == Token(Operator::Mul)) {
             result.push_back(pop() * pop());
         }
+        else if(token == Token(Operator::Minus)) {
+            double d = pop();
+            result.push_back(pop() - d);
+        }
+        else if(token == Token(Operator::Div)) {
+            double d = pop();
+            result.push_back(pop() / d);
+        }
     }
     return pop();
 }

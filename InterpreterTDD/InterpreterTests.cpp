@@ -182,6 +182,16 @@ public:
         double result = Evaluator::Evaluate({ _2, _3, mul });
         Assert::AreEqual(6.0, result);
     }
+
+    TEST_METHOD(Should_eval_expression_with_one_subtraction) {
+        double result = Evaluator::Evaluate({ _2, _3, minus });
+        Assert::AreEqual(-1.0, result);
+    }
+
+    TEST_METHOD(Should_eval_expression_with_one_division) {
+        double result = Evaluator::Evaluate({ _5, _2, div });
+        Assert::AreEqual(2.5, result);
+    }
 };
 
 }
