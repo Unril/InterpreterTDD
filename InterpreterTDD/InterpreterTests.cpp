@@ -192,6 +192,12 @@ public:
         double result = Evaluator::Evaluate({ _5, _2, div });
         Assert::AreEqual(2.5, result);
     }
+
+    TEST_METHOD(Should_eval_complex_expression) {
+        // (4+1)*2/(4/(3-1)) = 4 1 + 2 * 4 3 1 - / /  = 5
+        double result = Evaluator::Evaluate({ _4, _1, plus, _2, mul, _4, _3, _1, minus, div, div });
+        Assert::AreEqual(5.0, result);
+    }
 };
 
 }
