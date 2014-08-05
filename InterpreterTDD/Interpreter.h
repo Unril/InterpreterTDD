@@ -212,6 +212,10 @@ inline Tokens Tokenize(const std::wstring &expr) {
     return tokenizer.Result();
 }
 
+inline Tokens MarkUnaryOperators(const Tokens &tokens) {
+    return tokens;
+}
+
 } // namespace Lexer
 
 namespace Parser {

@@ -68,6 +68,15 @@ public:
     }
 };
 
+TEST_CLASS(LexerMarkUnaryOperatorsTests) {
+public:
+    TEST_METHOD(Should_return_same_list_when_it_without_pluses_or_minuses) {
+        auto tokens = { _1, mul, _2, div, _3 };
+        Tokens result = Lexer::MarkUnaryOperators(tokens);
+        AssertRange::AreEqual(tokens, result);
+    }
+};
+
 TEST_CLASS(TokenTests) {
 public:
     TEST_METHOD(Should_check_for_equality_operator_tokens) {
