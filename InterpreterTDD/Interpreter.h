@@ -15,10 +15,16 @@ enum class Operator : wchar_t {
     Div = L'/',
     LParen = L'(',
     RParen = L')',
+    UPlus,
+    UMinus,
 };
 
 inline std::wstring ToString(const Operator &op) {
-    return{ static_cast<wchar_t>(op) };
+    switch(op) {
+        case Operator::UPlus: return L"Unary +";
+        case Operator::UMinus: return L"Unary -";
+        default: return{ static_cast<wchar_t>(op) };
+    }
 }
 
 struct TokenVisitor {
@@ -112,9 +118,9 @@ class Token {
     };
 
 public:
-    Token(Operator val) : m_concept(std::make_shared<OperatorToken>(val)) {}
+    explicit Token(Operator val) : m_concept(std::make_shared<OperatorToken>(val)) {}
 
-    Token(double val) : m_concept(std::make_shared<NumberToken>(val)) {}
+    explicit Token(double val) : m_concept(std::make_shared<NumberToken>(val)) {}
 
     void Accept(TokenVisitor &visitor) const {
         m_concept->Accept(visitor);
@@ -179,7 +185,7 @@ private:
 
     void ScanNumber() {
         wchar_t *end = nullptr;
-        m_result.push_back(wcstod(m_current, &end));
+        m_result.emplace_back(wcstod(m_current, &end));
         m_current = end;
     }
 
@@ -189,7 +195,7 @@ private:
     }
 
     void ScanOperator() {
-        m_result.push_back(static_cast<Operator>(*m_current));
+        m_result.emplace_back(static_cast<Operator>(*m_current));
         MoveNext();
     }
 
@@ -213,7 +219,11 @@ inline Tokens Tokenize(const std::wstring &expr) {
 }
 
 inline Tokens MarkUnaryOperators(const Tokens &tokens) {
-    return tokens;
+    Tokens result = tokens;
+    if(tokens[0] == Token(Operator::Minus)) {
+        result[0] = Token(Operator::UMinus);
+    }
+    return result;
 }
 
 } // namespace Lexer

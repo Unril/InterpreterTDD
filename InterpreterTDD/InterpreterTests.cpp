@@ -18,7 +18,7 @@ static void AreEqual(initializer_list<T> expect, const ActualRange &actual) {
     Assert::AreEqual(distance(expectIter, end(expect)), distance(actualIter, end(actual)), L"Size differs.");
 
     for(; expectIter != end(expect) && actualIter != end(actual); ++expectIter, ++actualIter) {
-        auto message = L"Mismatch in position " + to_wstring(distance(begin(expect), expectIter));
+        auto message = L"Mismatch at position " + to_wstring(distance(begin(expect), expectIter));
         Assert::AreEqual<T>(*expectIter, *actualIter, message.c_str());
     }
 }
@@ -28,6 +28,7 @@ static void AreEqual(initializer_list<T> expect, const ActualRange &actual) {
 const Token plus(Operator::Plus), minus(Operator::Minus);
 const Token mul(Operator::Mul), div(Operator::Div);
 const Token pLeft(Operator::LParen), pRight(Operator::RParen);
+const Token uPlus(Operator::UPlus), uMinus(Operator::UMinus);
 const Token _1(1), _2(2), _3(3), _4(4), _5(5);
 
 TEST_CLASS(LexerTests) {
@@ -74,6 +75,11 @@ public:
         auto tokens = { _1, mul, _2, div, _3 };
         Tokens result = Lexer::MarkUnaryOperators(tokens);
         AssertRange::AreEqual(tokens, result);
+    }
+
+    TEST_METHOD(Should_mark_unary_first_minus_in_sequence) {
+        Tokens result = Lexer::MarkUnaryOperators({ minus, _1 });
+        AssertRange::AreEqual({ uMinus, _1 }, result);
     }
 };
 
