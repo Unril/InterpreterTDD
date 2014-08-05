@@ -203,6 +203,9 @@ private:
 
 } // namespace Detail
 
+/// <summary>
+/// Convert the expression string to a sequence of tokens.
+/// </summary>
 inline Tokens Tokenize(const std::wstring &expr) {
     Detail::Tokenizer tokenizer(expr);
     tokenizer.Tokenize();
@@ -292,6 +295,9 @@ private:
 
 } // namespace Detail
 
+/// <summary>
+/// Convert the sequence of tokens in infix notation to a sequence in postfix notation.
+/// </summary>
 inline Tokens Parse(const Tokens &tokens) {
     Detail::ShuntingYardParser parser;
     parser.Parse(tokens);
@@ -352,6 +358,9 @@ private:
 
 } // namespace Detail
 
+/// <summary>
+/// Evaluate the sequence of tokens in postfix notation and get a numerical result.
+/// </summary>
 inline double Evaluate(const Tokens &tokens) {
     Detail::StackEvaluator evaluator;
     evaluator.Evaluate(tokens);
@@ -360,6 +369,9 @@ inline double Evaluate(const Tokens &tokens) {
 
 } // namespace Evaluator
 
+/// <summary>
+/// Interpret the mathematical expression in infix notation and return a numerical result.
+/// </summary>
 inline double InterpreteExperssion(const std::wstring &expression) {
     return Evaluator::Evaluate(Parser::Parse(Lexer::Tokenize(expression)));
 }

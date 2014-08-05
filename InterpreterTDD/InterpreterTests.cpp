@@ -1,10 +1,6 @@
 #include "stdafx.h"
-
 #include "CppUnitTest.h"
-
 #include "Interpreter.h"
-
-#pragma warning(disable: 4505)
 
 namespace InterpreterTests {
 
@@ -29,10 +25,10 @@ static void AreEqual(initializer_list<T> expect, const ActualRange &actual) {
 
 } // namespace AssertRange
 
-static const Token plus(Operator::Plus), minus(Operator::Minus);
-static const Token mul(Operator::Mul), div(Operator::Div);
-static const Token pLeft(Operator::LParen), pRight(Operator::RParen);
-static const Token _1(1), _2(2), _3(3), _4(4), _5(5);
+const Token plus(Operator::Plus), minus(Operator::Minus);
+const Token mul(Operator::Mul), div(Operator::Div);
+const Token pLeft(Operator::LParen), pRight(Operator::RParen);
+const Token _1(1), _2(2), _3(3), _4(4), _5(5);
 
 TEST_CLASS(LexerTests) {
 public:
