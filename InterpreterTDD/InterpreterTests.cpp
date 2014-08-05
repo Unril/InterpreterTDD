@@ -50,7 +50,7 @@ public:
 
     TEST_METHOD(Should_tokenize_floating_point_number) {
         Tokens tokens = Lexer::Tokenize(L"12.34");
-        AssertRange::AreEqual({ 12.34 }, tokens);
+        AssertRange::AreEqual({ Token(12.34) }, tokens);
     }
 
     TEST_METHOD(Should_tokenize_plus_and_number) {
@@ -96,16 +96,6 @@ public:
         Assert::AreNotEqual(_1, _2);
         Assert::AreNotEqual(_1, minus);
     }
-
-    TEST_METHOD(Should_get_operator_code_from_operator_token) {
-        Token token(Operator::Plus);
-        Assert::AreEqual<Operator>(Operator::Plus, token);
-    }
-
-    TEST_METHOD(Should_get_number_value_from_number_token) {
-        Token token(1.23);
-        Assert::AreEqual<double>(1.23, token);
-    }
 };
 
 TEST_CLASS(ParserTests) {
@@ -131,12 +121,12 @@ public:
     }
 
     TEST_METHOD(Should_get_same_precedence_for_operator_pairs) {
-        Assert::AreEqual(Parser::PrecedenceOf(Operator::Plus), Parser::PrecedenceOf(Operator::Minus));
-        Assert::AreEqual(Parser::PrecedenceOf(Operator::Mul), Parser::PrecedenceOf(Operator::Div));
+        Assert::AreEqual(Parser::PrecedenceOf(plus), Parser::PrecedenceOf(minus));
+        Assert::AreEqual(Parser::PrecedenceOf(mul), Parser::PrecedenceOf(div));
     }
 
     TEST_METHOD(Should_get_greater_precedence_for_multiplicative_operators) {
-        Assert::IsTrue(Parser::PrecedenceOf(Operator::Mul) > Parser::PrecedenceOf(Operator::Plus));
+        Assert::IsTrue(Parser::PrecedenceOf(mul) > Parser::PrecedenceOf(plus));
     }
 
     TEST_METHOD(Should_parse_add_and_mul) {

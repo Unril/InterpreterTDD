@@ -28,9 +28,9 @@ inline std::wstring ToString(const Operator &op) {
 }
 
 struct TokenVisitor {
-    virtual void VisitNumber(double) {}
+    virtual void VisitNumber(double) = 0;
 
-    virtual void VisitOperator(Operator) {}
+    virtual void VisitOperator(Operator) = 0;
 
 protected:
     ~TokenVisitor() {}
@@ -53,14 +53,6 @@ class Token {
         virtual bool EqualsToOperator(Operator) const {
             return false;
         }
-
-        virtual double ToNumber() const {
-            throw std::logic_error("Invalid token type");
-        }
-
-        virtual Operator ToOperator() const {
-            throw std::logic_error("Invalid token type");
-        }
     };
 
     struct NumberToken : TokenConcept {
@@ -80,10 +72,6 @@ class Token {
 
         bool Equals(const TokenConcept &other) const {
             return other.EqualsToNumber(m_number);
-        }
-
-        double ToNumber() const override {
-            return m_number;
         }
 
     private:
@@ -109,10 +97,6 @@ class Token {
             return other.EqualsToOperator(m_operator);
         }
 
-        Operator ToOperator() const override {
-            return m_operator;
-        }
-
     private:
         Operator m_operator;
     };
@@ -126,16 +110,12 @@ public:
         m_concept->Accept(visitor);
     }
 
-    operator Operator() const {
-        return m_concept->ToOperator();
-    }
-
-    operator double() const {
-        return m_concept->ToNumber();
-    }
-
     friend inline bool operator==(const Token &left, const Token &right) {
         return left.m_concept->Equals(*right.m_concept);
+    }
+
+    friend inline bool operator!=(const Token &left, const Token &right) {
+        return !(left == right);
     }
 
     friend inline std::wstring ToString(const Token &token) {
@@ -190,8 +170,8 @@ private:
     }
 
     bool IsOperator() const {
-        auto all = { Operator::Plus, Operator::Minus, Operator::Mul, Operator::Div, Operator::LParen, Operator::RParen };
-        return std::any_of(all.begin(), all.end(), [this](Operator o) {return *m_current == static_cast<wchar_t>(o); });
+        static const std::wstring all(L"+-*/()");
+        return all.find(*m_current) != std::wstring::npos;
     }
 
     void ScanOperator() {
@@ -230,8 +210,8 @@ inline Tokens MarkUnaryOperators(const Tokens &tokens) {
 
 namespace Parser {
 
-inline int PrecedenceOf(Operator op) {
-    return (op == Operator::Mul || op == Operator::Div) ? 1 : 0;
+inline int PrecedenceOf(const Token &token) {
+    return (token == Token(Operator::Mul) || token == Token(Operator::Div)) ? 1 : 0;
 }
 
 namespace Detail {
@@ -278,22 +258,22 @@ private:
     }
 
     void PushCurrentToStack(Operator op) {
-        return m_stack.emplace_back(op);
+        m_stack.emplace_back(op);
     }
 
     void PopLeftParen() {
-        if(m_stack.empty() || m_stack.back() != Operator::LParen) {
+        if(m_stack.empty() || m_stack.back() != Token(Operator::LParen)) {
             throw std::logic_error("Opening paren not found.");
         }
         m_stack.pop_back();
     }
 
     bool OperatorWithLessPrecedenceOnTop(Operator op) const {
-        return PrecedenceOf(m_stack.back()) < PrecedenceOf(op);
+        return PrecedenceOf(m_stack.back()) < PrecedenceOf(Token(op));
     }
 
     bool LeftParenOnTop() const {
-        return static_cast<Operator>(m_stack.back()) == Operator::LParen;
+        return m_stack.back() == Token(Operator::LParen);
     }
 
     template<class T>
