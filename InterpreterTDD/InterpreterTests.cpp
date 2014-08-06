@@ -96,6 +96,11 @@ public:
         Tokens result = Lexer::MarkUnaryOperators({ _1, plus, minus, _1 });
         AssertRange::AreEqual({ _1, plus, uMinus, _1 }, result);
     }
+
+    TEST_METHOD(Should_mark_unary_only_minus_after_left_paren) {
+        Tokens result = Lexer::MarkUnaryOperators({ _1, minus, pLeft, minus, _1, pRight, minus, _1 });
+        AssertRange::AreEqual({ _1, minus, pLeft, uMinus, _1, pRight, minus, _1 }, result);
+    }
 };
 
 TEST_CLASS(TokenTests) {

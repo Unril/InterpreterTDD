@@ -205,20 +205,20 @@ public:
 private:
     void VisitNumber(double number) override {
         m_result.emplace_back(number);
-        m_previousIsOperator = false;
+        m_nextCanBeUnary = false;
     }
 
     void VisitOperator(Operator op) override {
-        if(m_previousIsOperator && op == Operator::Minus) {
+        if(m_nextCanBeUnary && op == Operator::Minus) {
             m_result.emplace_back(Operator::UMinus);
         }
         else {
             m_result.emplace_back(op);
         }
-        m_previousIsOperator = true;
+        m_nextCanBeUnary = (op != Operator::RParen);
     }
 
-    bool m_previousIsOperator = true;
+    bool m_nextCanBeUnary = true;
     Tokens m_result;
 };
 
