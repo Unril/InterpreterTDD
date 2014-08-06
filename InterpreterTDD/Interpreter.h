@@ -70,7 +70,7 @@ class Token {
             return value == m_number;
         }
 
-        bool Equals(const TokenConcept &other) const {
+        bool Equals(const TokenConcept &other) const override {
             return other.EqualsToNumber(m_number);
         }
 
@@ -93,7 +93,7 @@ class Token {
             return value == m_operator;
         }
 
-        bool Equals(const TokenConcept &other) const {
+        bool Equals(const TokenConcept &other) const override {
             return other.EqualsToOperator(m_operator);
         }
 
@@ -200,7 +200,7 @@ inline Tokens Tokenize(const std::wstring &expr) {
 
 inline Tokens MarkUnaryOperators(const Tokens &tokens) {
     Tokens result = tokens;
-    if(tokens[0] == Token(Operator::Minus)) {
+    if(!tokens.empty() && tokens[0] == Token(Operator::Minus)) {
         result[0] = Token(Operator::UMinus);
     }
     return result;

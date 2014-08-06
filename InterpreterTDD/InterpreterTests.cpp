@@ -81,6 +81,11 @@ public:
         Tokens result = Lexer::MarkUnaryOperators({ minus, _1 });
         AssertRange::AreEqual({ uMinus, _1 }, result);
     }
+
+    TEST_METHOD(Should_return_empty_list_when_get_empty_list) {
+        Tokens result = Lexer::MarkUnaryOperators({});
+        Assert::IsTrue(result.empty());
+    }
 };
 
 TEST_CLASS(TokenTests) {
