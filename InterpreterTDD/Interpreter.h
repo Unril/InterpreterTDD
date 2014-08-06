@@ -203,6 +203,10 @@ inline Tokens MarkUnaryOperators(const Tokens &tokens) {
     if(!tokens.empty() && tokens[0] == Token(Operator::Minus)) {
         result[0] = Token(Operator::UMinus);
     }
+    auto found = std::adjacent_find(result.begin(), result.end());
+    if(found != result.end()) {
+        *(found + 1) = Token(Operator::UMinus);
+    }
     return result;
 }
 
