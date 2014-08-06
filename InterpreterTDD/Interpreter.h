@@ -21,9 +21,12 @@ enum class Operator : wchar_t {
 
 inline std::wstring ToString(const Operator &op) {
     switch(op) {
-        case Operator::UPlus: return L"Unary +";
-        case Operator::UMinus: return L"Unary -";
-        default: return{ static_cast<wchar_t>(op) };
+        case Operator::UPlus:
+            return L"Unary +";
+        case Operator::UMinus:
+            return L"Unary -";
+        default:
+            return{ static_cast<wchar_t>(op) };
     }
 }
 
@@ -89,7 +92,7 @@ class Token {
             return Interpreter::ToString(m_operator);
         }
 
-        bool EqualsToOperator(Operator value) const  override {
+        bool EqualsToOperator(Operator value) const override {
             return value == m_operator;
         }
 
@@ -187,6 +190,38 @@ private:
     Tokens m_result;
 };
 
+class UnaryOperatorMarker : TokenVisitor {
+public:
+    void Mark(const Tokens &tokens) {
+        for(const Token &token : tokens) {
+            token.Accept(*this);
+        }
+    }
+
+    const Tokens &Result() const {
+        return m_result;
+    }
+
+private:
+    void VisitNumber(double number) override {
+        m_result.emplace_back(number);
+        m_previousIsOperator = false;
+    }
+
+    void VisitOperator(Operator op) override {
+        if(m_previousIsOperator && op == Operator::Minus) {
+            m_result.emplace_back(Operator::UMinus);
+        }
+        else {
+            m_result.emplace_back(op);
+        }
+        m_previousIsOperator = true;
+    }
+
+    bool m_previousIsOperator = true;
+    Tokens m_result;
+};
+
 } // namespace Detail
 
 /// <summary>
@@ -199,15 +234,9 @@ inline Tokens Tokenize(const std::wstring &expr) {
 }
 
 inline Tokens MarkUnaryOperators(const Tokens &tokens) {
-    Tokens result = tokens;
-    if(!tokens.empty() && tokens[0] == Token(Operator::Minus)) {
-        result[0] = Token(Operator::UMinus);
-    }
-    auto found = std::adjacent_find(result.begin(), result.end());
-    if(found != result.end()) {
-        *(found + 1) = Token(Operator::UMinus);
-    }
-    return result;
+    Detail::UnaryOperatorMarker marker;
+    marker.Mark(tokens);
+    return marker.Result();
 }
 
 } // namespace Lexer
@@ -226,7 +255,7 @@ public:
         for(const Token &token : tokens) {
             token.Accept(*this);
         }
-        PopToOutputUntil([this]() {return StackHasNoOperators(); });
+        PopToOutputUntil([this]() { return StackHasNoOperators(); });
     }
 
     const Tokens &Result() const {
@@ -280,8 +309,7 @@ private:
         return m_stack.back() == Token(Operator::LParen);
     }
 
-    template<class T>
-    void PopToOutputUntil(T whenToEnd) {
+    template <class T> void PopToOutputUntil(T whenToEnd) {
         while(!m_stack.empty() && !whenToEnd()) {
             m_output.push_back(m_stack.back());
             m_stack.pop_back();
