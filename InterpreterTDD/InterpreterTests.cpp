@@ -101,6 +101,12 @@ public:
         Tokens result = Lexer::MarkUnaryOperators({ _1, minus, pLeft, minus, _1, pRight, minus, _1 });
         AssertRange::AreEqual({ _1, minus, pLeft, uMinus, _1, pRight, minus, _1 }, result);
     }
+
+    TEST_METHOD(Should_mark_all_pluses_in_following_experssion_as_unary) {
+        // +(+1-++1)-1
+        Tokens result = Lexer::MarkUnaryOperators({ plus, pLeft, plus, _1, minus, plus, plus, _1, pRight, minus, _1 });
+        AssertRange::AreEqual({ uPlus, pLeft, uPlus, _1, minus, uPlus, uPlus, _1, pRight, minus, _1 }, result);
+    }
 };
 
 TEST_CLASS(TokenTests) {

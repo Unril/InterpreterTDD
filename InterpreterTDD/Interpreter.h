@@ -208,14 +208,17 @@ private:
         m_nextCanBeUnary = false;
     }
 
-    void VisitOperator(Operator op) override {
-        if(m_nextCanBeUnary && op == Operator::Minus) {
-            m_result.emplace_back(Operator::UMinus);
+    void VisitOperator(Operator current) override {
+        m_result.emplace_back(m_nextCanBeUnary ? TryConvertToUnary(current) : current);
+        m_nextCanBeUnary = (current != Operator::RParen);
+    }
+
+    static Operator TryConvertToUnary(Operator op) {
+        switch(op) {
+            case Operator::Plus: return Operator::UPlus;
+            case Operator::Minus: return Operator::UMinus;
+            default: return op;
         }
-        else {
-            m_result.emplace_back(op);
-        }
-        m_nextCanBeUnary = (op != Operator::RParen);
     }
 
     bool m_nextCanBeUnary = true;
