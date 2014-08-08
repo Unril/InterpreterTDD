@@ -194,6 +194,12 @@ public:
         Tokens tokens = Parser::Parse({ uPlus, pLeft, uPlus, _1, minus, uPlus, uPlus, _1, pRight, minus, _1 });
         AssertRange::AreEqual({ _1, _1, minus, _1, minus }, tokens);
     }
+
+    TEST_METHOD(Should_parse_unary_minus) {
+        // 1 + - 2 = 1 2 u- +
+        Tokens tokens = Parser::Parse({ _1, plus, uMinus, _2 });
+        AssertRange::AreEqual({ _1, _2, uMinus, plus }, tokens);
+    }
 };
 
 TEST_CLASS(EvaluatorTests) {

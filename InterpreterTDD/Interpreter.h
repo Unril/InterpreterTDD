@@ -9,20 +9,17 @@
 namespace Interpreter {
 
 enum class Operator {
-    Plus, Minus,
-    Mul, Div,
-    LParen, RParen,
-    UPlus, UMinus,
+    Plus, Minus, Mul, Div, LParen, RParen, UPlus, UMinus,
 };
 
 inline std::wstring ToString(const Operator &op) {
     switch(op) {
-        case Interpreter::Operator::Plus: return L"+";
-        case Interpreter::Operator::Minus: return L"-";
-        case Interpreter::Operator::Mul: return L"*";
-        case Interpreter::Operator::Div: return L"/";
-        case Interpreter::Operator::LParen: return L"(";
-        case Interpreter::Operator::RParen: return L")";
+        case Operator::Plus: return L"+";
+        case Operator::Minus: return L"-";
+        case Operator::Mul: return L"*";
+        case Operator::Div: return L"/";
+        case Operator::LParen: return L"(";
+        case Operator::RParen: return L")";
         case Operator::UPlus: return L"Unary +";
         case Operator::UMinus: return L"Unary -";
         default: throw std::out_of_range("Operator.");
@@ -268,6 +265,9 @@ private:
     void VisitOperator(Operator op) override {
         switch(op) {
             case Operator::UPlus:
+                break;
+            case Operator::UMinus:
+                PushCurrentToStack(op);
                 break;
             case Operator::LParen:
                 PushCurrentToStack(op);
