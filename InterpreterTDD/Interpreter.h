@@ -5,6 +5,7 @@
 #include <functional>
 #include <map>
 #include <memory>
+#include <array>
 
 namespace Interpreter {
 
@@ -196,9 +197,7 @@ private:
 class UnaryOperatorMarker : TokenVisitor {
 public:
     void Mark(const Tokens &tokens) {
-        for(const Token &token : tokens) {
-            token.Accept(*this);
-        }
+        for(const Token &token : tokens) token.Accept(*this);
     }
 
     const Tokens &Result() const {
@@ -253,12 +252,8 @@ inline Tokens MarkUnaryOperators(const Tokens &tokens) {
 namespace Parser {
 
 inline int PrecedenceOf(const Token &token) {
-    if(token == Token(Operator::UMinus)) {
-        return 2;
-    }
-    if(token == Token(Operator::Mul) || token == Token(Operator::Div)) {
-        return 1;
-    }
+    if(token == Token(Operator::UMinus)) return 2;
+    if(token == Token(Operator::Mul) || token == Token(Operator::Div)) return 1;
     return 0;
 }
 
@@ -267,9 +262,7 @@ namespace Detail {
 class ShuntingYardParser : TokenVisitor {
 public:
     void Parse(const Tokens &tokens) {
-        for(const Token &token : tokens) {
-            token.Accept(*this);
-        }
+        for(const Token &token : tokens) token.Accept(*this);
         PopToOutputUntil([this]() { return StackHasNoOperators(); });
     }
 
@@ -304,9 +297,7 @@ private:
     }
 
     bool StackHasNoOperators() const {
-        if(m_stack.back() == Token(Operator::LParen)) {
-            throw std::logic_error("Closing paren not found.");
-        }
+        if(m_stack.back() == Token(Operator::LParen)) throw std::logic_error("Closing paren not found.");
         return false;
     }
 
@@ -315,9 +306,7 @@ private:
     }
 
     void PopLeftParen() {
-        if(m_stack.empty() || m_stack.back() != Token(Operator::LParen)) {
-            throw std::logic_error("Opening paren not found.");
-        }
+        if(m_stack.empty() || m_stack.back() != Token(Operator::LParen)) throw std::logic_error("Opening paren not found.");
         m_stack.pop_back();
     }
 
@@ -356,12 +345,37 @@ namespace Evaluator {
 
 namespace Detail {
 
+struct EvalFunction {
+    virtual ~EvalFunction() {};
+    virtual void Eval(std::vector<double> &) const = 0;
+};
+
+typedef std::unique_ptr<EvalFunction> FunctionPtr;
+
+template<class T, int Size>
+struct EvalFunctionImpl : public EvalFunction {
+    EvalFunctionImpl(T function) : m_function(function) {}
+
+    void Eval(std::vector<double> &stack) const override {
+        if(stack.size() < Size) throw std::logic_error("Not enough operands in stack.");
+        std::array<double, Size> operands;
+        std::copy(stack.cend() - Size, stack.cend(), operands.begin());
+        stack.erase(stack.cend() - Size, stack.cend());
+        stack.push_back(m_function(operands));
+    }
+
+private:
+    T m_function;
+};
+
+template<int Size, class T> FunctionPtr MakeFunction(T function) {
+    return FunctionPtr(new EvalFunctionImpl<T, Size>(function));
+}
+
 class StackEvaluator : TokenVisitor {
 public:
     void Evaluate(const Tokens &tokens) {
-        for(const Token &token : tokens) {
-            token.Accept(*this);
-        }
+        for(const Token &token : tokens) token.Accept(*this);
     }
 
     double Result() const {
@@ -370,39 +384,22 @@ public:
 
 private:
     void VisitOperator(Operator op) override {
-        if(op == Operator::UMinus) {
-            double first = PopOperand();
-            m_stack.push_back(-first);
-        }
-        else {
-            double second = PopOperand();
-            double first = PopOperand();
-            m_stack.push_back(BinaryFunctionFor(op)(first, second));
-        }
+        const static auto fmap = FunctionsMap();
+        fmap.at(op)->Eval(m_stack);
     }
 
     void VisitNumber(double number) override {
         m_stack.push_back(number);
     }
 
-    double PopOperand() {
-        double operand = m_stack.back();
-        m_stack.pop_back();
-        return operand;
-    }
-
-    static const std::function<double(double, double)> &BinaryFunctionFor(Operator op) {
-        static const std::map<Operator, std::function<double(double, double)>> functions{
-                { Operator::Plus, std::plus<double>() },
-                { Operator::Minus, std::minus<double>() },
-                { Operator::Mul, std::multiplies<double>() },
-                { Operator::Div, std::divides<double>() },
-        };
-        auto found = functions.find(op);
-        if(found == functions.cend()) {
-            throw std::logic_error("Operator not found.");
-        }
-        return found->second;
+    static std::map<Operator, FunctionPtr> FunctionsMap() {
+        std::map<Operator, FunctionPtr> fmap;
+        fmap.emplace(Operator::Plus, MakeFunction<2>([](auto args) {return args[0] + args[1]; }));
+        fmap.emplace(Operator::Minus, MakeFunction<2>([](auto args) {return args[0] - args[1]; }));
+        fmap.emplace(Operator::Mul, MakeFunction<2>([](auto args) {return args[0] * args[1]; }));
+        fmap.emplace(Operator::Div, MakeFunction<2>([](auto args) {return args[0] / args[1]; }));
+        fmap.emplace(Operator::UMinus, MakeFunction<1>([](auto args) {return -args[0]; }));
+        return fmap;
     }
 
     std::vector<double> m_stack;
