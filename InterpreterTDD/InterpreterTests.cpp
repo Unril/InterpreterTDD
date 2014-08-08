@@ -204,6 +204,12 @@ public:
     TEST_METHOD(Should_get_greater_precedence_for_unary_minus_when_for_multiplication) {
         Assert::IsTrue(Parser::PrecedenceOf(uMinus) > Parser::PrecedenceOf(plus));
     }
+
+    TEST_METHOD(Should_parse_unary_minus_with_greater_precedence) {
+        // 3/-1*-2 = 3 1 u- / 2 u- *
+        Tokens tokens = Parser::Parse({ _3, div, uMinus, _1, mul, uMinus, _2 });
+        AssertRange::AreEqual({ _3, _1, uMinus, div, _2, uMinus, mul }, tokens);
+    }
 };
 
 TEST_CLASS(EvaluatorTests) {
