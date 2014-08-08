@@ -28,7 +28,6 @@ inline std::wstring ToString(const Operator &op) {
 
 struct TokenVisitor {
     virtual void VisitNumber(double) = 0;
-
     virtual void VisitOperator(Operator) = 0;
 
 protected:
@@ -174,7 +173,15 @@ private:
     }
 
     void ScanOperator() {
-        m_result.emplace_back(static_cast<Operator>(*m_current));
+        switch(*m_current) {
+            case L'+': m_result.emplace_back(Operator::Plus); break;
+            case L'-': m_result.emplace_back(Operator::Minus); break;
+            case L'*': m_result.emplace_back(Operator::Mul); break;
+            case L'/': m_result.emplace_back(Operator::Div); break;
+            case L'(': m_result.emplace_back(Operator::LParen); break;
+            case L')': m_result.emplace_back(Operator::RParen); break;
+            default: break;
+        }
         MoveNext();
     }
 
@@ -232,6 +239,9 @@ inline Tokens Tokenize(const std::wstring &expr) {
     return tokenizer.Result();
 }
 
+/// <summary>
+/// Change binary pluses and minuses that are unary to unary operator tokens.
+/// </summary>
 inline Tokens MarkUnaryOperators(const Tokens &tokens) {
     Detail::UnaryOperatorMarker marker;
     marker.Mark(tokens);
@@ -360,9 +370,15 @@ public:
 
 private:
     void VisitOperator(Operator op) override {
-        double second = PopOperand();
-        double first = PopOperand();
-        m_stack.push_back(BinaryFunctionFor(op)(first, second));
+        if(op == Operator::UMinus) {
+            double first = PopOperand();
+            m_stack.push_back(-first);
+        }
+        else {
+            double second = PopOperand();
+            double first = PopOperand();
+            m_stack.push_back(BinaryFunctionFor(op)(first, second));
+        }
     }
 
     void VisitNumber(double number) override {
@@ -370,9 +386,9 @@ private:
     }
 
     double PopOperand() {
-        double back = m_stack.back();
+        double operand = m_stack.back();
         m_stack.pop_back();
-        return back;
+        return operand;
     }
 
     static const std::function<double(double, double)> &BinaryFunctionFor(Operator op) {

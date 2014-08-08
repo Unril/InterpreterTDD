@@ -249,6 +249,11 @@ public:
         double result = Evaluator::Evaluate({ _4, _1, plus, _2, mul, _4, _3, _1, minus, div, div });
         Assert::AreEqual(5.0, result);
     }
+
+    TEST_METHOD(Should_eval_simple_expression_with_unary_minus) {
+        double result = Evaluator::Evaluate({ _1, uMinus });
+        Assert::AreEqual(-1.0, result);
+    }
 };
 
 TEST_CLASS(InterpreterIntegrationTests) {
