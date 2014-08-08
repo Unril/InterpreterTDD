@@ -200,6 +200,10 @@ public:
         Tokens tokens = Parser::Parse({ _1, plus, uMinus, _2 });
         AssertRange::AreEqual({ _1, _2, uMinus, plus }, tokens);
     }
+
+    TEST_METHOD(Should_get_greater_precedence_for_unary_minus_when_for_multiplication) {
+        Assert::IsTrue(Parser::PrecedenceOf(uMinus) > Parser::PrecedenceOf(plus));
+    }
 };
 
 TEST_CLASS(EvaluatorTests) {

@@ -243,7 +243,13 @@ inline Tokens MarkUnaryOperators(const Tokens &tokens) {
 namespace Parser {
 
 inline int PrecedenceOf(const Token &token) {
-    return (token == Token(Operator::Mul) || token == Token(Operator::Div)) ? 1 : 0;
+    if(token == Token(Operator::UMinus)) {
+        return 2;
+    }
+    if(token == Token(Operator::Mul) || token == Token(Operator::Div)) {
+        return 1;
+    }
+    return 0;
 }
 
 namespace Detail {
