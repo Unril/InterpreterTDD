@@ -3,7 +3,7 @@
 #include <wchar.h>
 #include <algorithm>
 #include <functional>
-#include <map>
+#include <unordered_map>
 #include <memory>
 #include <array>
 
@@ -12,6 +12,8 @@ namespace Interpreter {
 enum class Operator {
     Plus, Minus, Mul, Div, LParen, RParen, UPlus, UMinus,
 };
+
+typedef double Number;
 
 inline std::wstring ToString(const Operator &op) {
     switch(op) {
@@ -27,12 +29,14 @@ inline std::wstring ToString(const Operator &op) {
     }
 }
 
-struct TokenVisitor {
-    virtual void VisitNumber(double) = 0;
-    virtual void VisitOperator(Operator) = 0;
+inline std::wstring ToString(const Number &num) {
+    return std::to_wstring(num);
+}
 
-protected:
-    ~TokenVisitor() {}
+struct TokenVisitor {
+    virtual ~TokenVisitor() {}
+    virtual void Visit(Number) = 0;
+    virtual void Visit(Operator) = 0;
 };
 
 class Token {
@@ -43,74 +47,59 @@ class Token {
 
         virtual std::wstring ToString() const = 0;
 
-        virtual bool Equals(const TokenConcept &other) const = 0;
+        virtual bool DispatchEquals(const TokenConcept &) const = 0;
 
-        virtual bool EqualsToNumber(double) const {
+        virtual bool EqualsTo(Number) const {
             return false;
         }
 
-        virtual bool EqualsToOperator(Operator) const {
+        virtual bool EqualsTo(Operator) const {
             return false;
         }
     };
 
-    struct NumberToken : TokenConcept {
-        NumberToken(double val) : m_number(val) {}
+    template<typename T>
+    struct GenericToken : TokenConcept {
+        GenericToken(T payload) : m_payload(std::move(payload)) {}
 
         void Accept(TokenVisitor &visitor) const override {
-            visitor.VisitNumber(m_number);
+            visitor.Visit(m_payload);
         }
 
         std::wstring ToString() const override {
-            return std::to_wstring(m_number);
+            return Interpreter::ToString(m_payload);
         }
 
-        bool EqualsToNumber(double value) const override {
-            return value == m_number;
+        bool EqualsTo(T value) const override {
+            return value == m_payload;
         }
 
-        bool Equals(const TokenConcept &other) const override {
-            return other.EqualsToNumber(m_number);
+        bool DispatchEquals(const TokenConcept &other) const override {
+            return other.EqualsTo(m_payload);
         }
 
-    private:
-        double m_number;
-    };
-
-    struct OperatorToken : TokenConcept {
-        OperatorToken(Operator val) : m_operator(val) {}
-
-        void Accept(TokenVisitor &visitor) const override {
-            visitor.VisitOperator(m_operator);
-        }
-
-        std::wstring ToString() const override {
-            return Interpreter::ToString(m_operator);
-        }
-
-        bool EqualsToOperator(Operator value) const override {
-            return value == m_operator;
-        }
-
-        bool Equals(const TokenConcept &other) const override {
-            return other.EqualsToOperator(m_operator);
-        }
-
-    private:
-        Operator m_operator;
+        T m_payload;
     };
 
 public:
-    explicit Token(Operator val) : m_concept(std::make_shared<OperatorToken>(val)) {}
+    explicit Token(Operator value) : m_concept(std::make_shared<GenericToken<Operator>>(value)) {}
 
-    explicit Token(double val) : m_concept(std::make_shared<NumberToken>(val)) {}
+    explicit Token(Number value) : m_concept(std::make_shared<GenericToken<Number>>(value)) {}
 
     void Accept(TokenVisitor &visitor) const {
         m_concept->Accept(visitor);
     }
 
+    bool EqualsTo(Operator value) const {
+        return m_concept->EqualsTo(value);
+    }
+
+    bool EqualsTo(Number value) const {
+        return m_concept->EqualsTo(value);
+    }
+
     friend inline bool operator==(const Token &left, const Token &right) {
-        return left.m_concept->Equals(*right.m_concept);
+        return left.m_concept->DispatchEquals(*right.m_concept);
     }
 
     friend inline bool operator!=(const Token &left, const Token &right) {
@@ -133,7 +122,7 @@ namespace Detail {
 
 class Tokenizer {
 public:
-    Tokenizer(const std::wstring &expr) : m_current(expr.c_str()) {}
+    Tokenizer(const std::wstring &expression) : m_current(expression.c_str()) {}
 
     void Tokenize() {
         while(!EndOfExperssion()) {
@@ -205,12 +194,12 @@ public:
     }
 
 private:
-    void VisitNumber(double number) override {
-        m_result.emplace_back(number);
+    void Visit(Number num) override {
+        m_result.emplace_back(num);
         m_nextCanBeUnary = false;
     }
 
-    void VisitOperator(Operator current) override {
+    void Visit(Operator current) override {
         m_result.emplace_back(m_nextCanBeUnary ? TryConvertToUnary(current) : current);
         m_nextCanBeUnary = (current != Operator::RParen);
     }
@@ -232,8 +221,8 @@ private:
 /// <summary>
 /// Convert the expression string to a sequence of tokens.
 /// </summary>
-inline Tokens Tokenize(const std::wstring &expr) {
-    Detail::Tokenizer tokenizer(expr);
+inline Tokens Tokenize(const std::wstring &expression) {
+    Detail::Tokenizer tokenizer(expression);
     tokenizer.Tokenize();
     return tokenizer.Result();
 }
@@ -252,8 +241,8 @@ inline Tokens MarkUnaryOperators(const Tokens &tokens) {
 namespace Parser {
 
 inline int PrecedenceOf(const Token &token) {
-    if(token == Token(Operator::UMinus)) return 2;
-    if(token == Token(Operator::Mul) || token == Token(Operator::Div)) return 1;
+    if(token.EqualsTo(Operator::UMinus)) return 2;
+    if(token.EqualsTo(Operator::Mul) || token.EqualsTo(Operator::Div)) return 1;
     return 0;
 }
 
@@ -271,7 +260,7 @@ public:
     }
 
 private:
-    void VisitOperator(Operator op) override {
+    void Visit(Operator op) override {
         switch(op) {
             case Operator::UPlus:
                 break;
@@ -292,12 +281,12 @@ private:
         }
     }
 
-    void VisitNumber(double number) override {
-        m_output.emplace_back(number);
+    void Visit(Number num) override {
+        m_output.emplace_back(num);
     }
 
     bool StackHasNoOperators() const {
-        if(m_stack.back() == Token(Operator::LParen)) throw std::logic_error("Closing paren not found.");
+        if(m_stack.back().EqualsTo(Operator::LParen)) throw std::logic_error("Closing paren not found.");
         return false;
     }
 
@@ -306,7 +295,9 @@ private:
     }
 
     void PopLeftParen() {
-        if(m_stack.empty() || m_stack.back() != Token(Operator::LParen)) throw std::logic_error("Opening paren not found.");
+        if(m_stack.empty() || !m_stack.back().EqualsTo(Operator::LParen)) {
+            throw std::logic_error("Opening paren not found.");
+        }
         m_stack.pop_back();
     }
 
@@ -315,10 +306,11 @@ private:
     }
 
     bool LeftParenOnTop() const {
-        return m_stack.back() == Token(Operator::LParen);
+        return m_stack.back().EqualsTo(Operator::LParen);
     }
 
-    template <class T> void PopToOutputUntil(T whenToEnd) {
+    template <typename T>
+    void PopToOutputUntil(T whenToEnd) {
         while(!m_stack.empty() && !whenToEnd()) {
             m_output.push_back(m_stack.back());
             m_stack.pop_back();
@@ -345,64 +337,47 @@ namespace Evaluator {
 
 namespace Detail {
 
-struct EvalFunction {
-    virtual ~EvalFunction() {};
-    virtual void Eval(std::vector<double> &) const = 0;
-};
-
-typedef std::unique_ptr<EvalFunction> FunctionPtr;
-
-template<class T, int Size>
-struct EvalFunctionImpl : public EvalFunction {
-    EvalFunctionImpl(T function) : m_function(function) {}
-
-    void Eval(std::vector<double> &stack) const override {
-        if(stack.size() < Size) throw std::logic_error("Not enough operands in stack.");
-        std::array<double, Size> operands;
-        std::copy(stack.cend() - Size, stack.cend(), operands.begin());
-        stack.erase(stack.cend() - Size, stack.cend());
-        stack.push_back(m_function(operands));
-    }
-
-private:
-    T m_function;
-};
-
-template<int Size, class T> FunctionPtr MakeFunction(T function) {
-    return FunctionPtr(new EvalFunctionImpl<T, Size>(function));
-}
-
 class StackEvaluator : TokenVisitor {
+    typedef std::vector<Number> Stack;
+    typedef Stack::const_iterator Args;
+
 public:
     void Evaluate(const Tokens &tokens) {
         for(const Token &token : tokens) token.Accept(*this);
     }
 
-    double Result() const {
+    Number Result() const {
         return m_stack.empty() ? 0 : m_stack.back();
     }
 
 private:
-    void VisitOperator(Operator op) override {
-        const static auto fmap = FunctionsMap();
-        fmap.at(op)->Eval(m_stack);
+    template<typename T>
+    static auto MakeEvaluator(const size_t arity, T function) {
+        return [=](Stack &stack) {
+            if(stack.size() < arity) throw std::logic_error("Not enough operands in stack.");
+            Args arguments = stack.cend() - arity;
+            Number result = function(arguments);
+            stack.erase(arguments, stack.cend());
+            stack.push_back(result);
+        };
     }
 
-    void VisitNumber(double number) override {
-        m_stack.push_back(number);
+    void Visit(Operator op) override {
+        const static std::unordered_map<Operator, std::function<void(Stack &)>> evaluators{
+                { Operator::Plus, MakeEvaluator(2, [=](Args a) { return a[0] + a[1]; }) },
+                { Operator::Minus, MakeEvaluator(2, [=](Args a) { return a[0] - a[1]; }) },
+                { Operator::Mul, MakeEvaluator(2, [=](Args a) { return a[0] * a[1]; }) },
+                { Operator::Div, MakeEvaluator(2, [=](Args a) { return a[0] / a[1]; }) },
+                { Operator::UMinus, MakeEvaluator(1, [=](Args a) { return -a[0]; }) }
+        };
+        evaluators.at(op)(m_stack);
     }
 
-    static std::map<Operator, FunctionPtr> FunctionsMap() {
-        std::map<Operator, FunctionPtr> fmap;
-        fmap.emplace(Operator::Plus, MakeFunction<2>([](auto args) {return args[0] + args[1]; }));
-        fmap.emplace(Operator::Minus, MakeFunction<2>([](auto args) {return args[0] - args[1]; }));
-        fmap.emplace(Operator::Mul, MakeFunction<2>([](auto args) {return args[0] * args[1]; }));
-        fmap.emplace(Operator::Div, MakeFunction<2>([](auto args) {return args[0] / args[1]; }));
-        fmap.emplace(Operator::UMinus, MakeFunction<1>([](auto args) {return -args[0]; }));
-        return fmap;
+    void Visit(Number num) override {
+        m_stack.push_back(num);
     }
 
-    std::vector<double> m_stack;
+    Stack m_stack;
 };
 
 } // namespace Detail
