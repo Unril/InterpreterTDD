@@ -25,11 +25,11 @@ static void AreEqual(initializer_list<T> expect, const ActualRange &actual) {
 
 } // namespace AssertRange
 
-const Token plus(Operator::Plus), minus(Operator::Minus);
-const Token mul(Operator::Mul), div(Operator::Div);
-const Token pLeft(Operator::LParen), pRight(Operator::RParen);
-const Token uPlus(Operator::UPlus), uMinus(Operator::UMinus);
-const Token _1(1), _2(2), _3(3), _4(4), _5(5);
+const Token plus(MakeToken(Operator::Plus)), minus(MakeToken(Operator::Minus));
+const Token mul(MakeToken(Operator::Mul)), div(MakeToken(Operator::Div));
+const Token pLeft(MakeToken(Operator::LParen)), pRight(MakeToken(Operator::RParen));
+const Token uPlus(MakeToken(Operator::UPlus)), uMinus(MakeToken(Operator::UMinus));
+const Token _1(MakeToken(1)), _2(MakeToken(2)), _3(MakeToken(3)), _4(MakeToken(4)), _5(MakeToken(5));
 
 TEST_CLASS(LexerTests) {
 public:
@@ -50,17 +50,17 @@ public:
 
     TEST_METHOD(Should_tokenize_floating_point_number) {
         Tokens tokens = Lexer::Tokenize(L"12.34");
-        AssertRange::AreEqual({ Token(12.34) }, tokens);
+        AssertRange::AreEqual({ MakeToken(12.34) }, tokens);
     }
 
     TEST_METHOD(Should_tokenize_plus_and_number) {
         Tokens tokens = Lexer::Tokenize(L"+12.34");
-        AssertRange::AreEqual({ plus, Token(12.34) }, tokens);
+        AssertRange::AreEqual({ plus, MakeToken(12.34) }, tokens);
     }
 
     TEST_METHOD(Should_skip_spaces) {
         Tokens tokens = Lexer::Tokenize(L" 1 +  12.34  ");
-        AssertRange::AreEqual({ _1, plus, Token(12.34) }, tokens);
+        AssertRange::AreEqual({ _1, plus, MakeToken(12.34) }, tokens);
     }
 
     TEST_METHOD(Should_tokenize_complex_experssion) {
@@ -264,8 +264,8 @@ public:
     }
 
     TEST_METHOD(Should_interprete_experssion) {
-        double result = Interpreter::InterpreteExperssion(L"1+2");
-        Assert::AreEqual(3.0, result);
+        double result = Interpreter::InterpreteExperssion(L"1-(2+3/-1*-2)");
+        Assert::AreEqual(-7.0, result);
     }
 };
 

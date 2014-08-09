@@ -1,19 +1,15 @@
 #pragma once;
 #include <vector>
-#include <wchar.h>
 #include <algorithm>
 #include <functional>
 #include <unordered_map>
 #include <memory>
-#include <array>
 
 namespace Interpreter {
 
 enum class Operator {
     Plus, Minus, Mul, Div, LParen, RParen, UPlus, UMinus,
 };
-
-typedef double Number;
 
 inline std::wstring ToString(const Operator &op) {
     switch(op) {
@@ -29,103 +25,109 @@ inline std::wstring ToString(const Operator &op) {
     }
 }
 
-inline std::wstring ToString(const Number &num) {
+inline std::wstring ToString(const double &num) {
     return std::to_wstring(num);
 }
 
 struct TokenVisitor {
+    template<typename Iter> void VisitAll(Iter first, Iter last) {
+        std::for_each(first, last, [this](const auto &token) { token->Accept(*this); });
+    }
+
     virtual ~TokenVisitor() {}
-    virtual void Visit(Number) = 0;
+    virtual void Visit(double) = 0;
     virtual void Visit(Operator) = 0;
 };
 
-class Token {
-    struct TokenConcept {
-        virtual ~TokenConcept() {}
+namespace Detail {
 
-        virtual void Accept(TokenVisitor &) const = 0;
+struct TokenConcept {
+    virtual ~TokenConcept() {}
+    virtual void Accept(TokenVisitor &) const = 0;
+    virtual std::wstring ToString() const = 0;
+    virtual bool DispatchEquals(const TokenConcept &) const = 0;
 
-        virtual std::wstring ToString() const = 0;
+    virtual bool EqualsTo(double) const {
+        return false;
+    }
 
-        virtual bool DispatchEquals(const TokenConcept &) const = 0;
+    virtual bool EqualsTo(Operator) const {
+        return false;
+    }
+};
 
-        virtual bool EqualsTo(Number) const {
-            return false;
-        }
+inline std::wstring ToString(const std::shared_ptr<const TokenConcept> &token) {
+    return token->ToString();
+}
 
-        virtual bool EqualsTo(Operator) const {
-            return false;
-        }
-    };
+inline bool operator==(const std::shared_ptr<const TokenConcept> &left, const std::shared_ptr<const TokenConcept> &right) {
+    return left->DispatchEquals(*right);
+}
 
-    template<typename T>
-    struct GenericToken : TokenConcept {
-        GenericToken(T payload) : m_payload(std::move(payload)) {}
+template<typename T> bool operator==(const std::shared_ptr<const TokenConcept> &left, T right) {
+    return left->EqualsTo(right);
+}
 
-        void Accept(TokenVisitor &visitor) const override {
-            visitor.Visit(m_payload);
-        }
+template<typename T> struct GenericToken : TokenConcept {
+    GenericToken(T payload) : m_payload(std::move(payload)) {}
 
-        std::wstring ToString() const override {
-            return Interpreter::ToString(m_payload);
-        }
+    void Accept(TokenVisitor &visitor) const override {
+        visitor.Visit(m_payload);
+    }
 
-        bool EqualsTo(T value) const override {
-            return value == m_payload;
-        }
+    std::wstring ToString() const override {
+        return Interpreter::ToString(m_payload);
+    }
 
-        bool DispatchEquals(const TokenConcept &other) const override {
-            return other.EqualsTo(m_payload);
-        }
+    bool EqualsTo(T value) const override {
+        return value == m_payload;
+    }
 
-        T m_payload;
-    };
+    bool DispatchEquals(const TokenConcept &other) const override {
+        return other.EqualsTo(m_payload);
+    }
 
+    T m_payload;
+};
+} // namespace Detail
+
+typedef std::shared_ptr<const Detail::TokenConcept> Token;
+typedef std::vector<Token> Tokens;
+
+inline Token MakeToken(Operator value) {
+    return std::make_shared<Detail::GenericToken<Operator>>(value);
+}
+
+inline Token MakeToken(double value) {
+    return std::make_shared<Detail::GenericToken<double>>(value);
+}
+
+class WithTokensResult {
 public:
-    explicit Token(Operator value) : m_concept(std::make_shared<GenericToken<Operator>>(value)) {}
-
-    explicit Token(Number value) : m_concept(std::make_shared<GenericToken<Number>>(value)) {}
-
-    void Accept(TokenVisitor &visitor) const {
-        m_concept->Accept(visitor);
+    Tokens Result() {
+        return std::move(m_result);
     }
 
-    bool EqualsTo(Operator value) const {
-        return m_concept->EqualsTo(value);
+protected:
+    template<typename T> void AddToResult(T value) {
+        m_result.push_back(MakeToken(value));
     }
 
-    bool EqualsTo(Number value) const {
-        return m_concept->EqualsTo(value);
-    }
-
-    friend inline bool operator==(const Token &left, const Token &right) {
-        return left.m_concept->DispatchEquals(*right.m_concept);
-    }
-
-    friend inline bool operator!=(const Token &left, const Token &right) {
-        return !(left == right);
-    }
-
-    friend inline std::wstring ToString(const Token &token) {
-        return token.m_concept->ToString();
+    void AddToResult(const Token &value) {
+        m_result.push_back(value);
     }
 
 private:
-    std::shared_ptr<const TokenConcept> m_concept;
+    Tokens m_result;
 };
 
-typedef std::vector<Token> Tokens;
-
 namespace Lexer {
-
 namespace Detail {
 
-class Tokenizer {
+class Tokenizer : public WithTokensResult {
 public:
-    Tokenizer(const std::wstring &expression) : m_current(expression.c_str()) {}
-
-    void Tokenize() {
-        while(!EndOfExperssion()) {
+    void Tokenize(const std::wstring &expression) {
+        for(m_current = expression.c_str(); *m_current;) {
             if(IsNumber()) {
                 ScanNumber();
             }
@@ -138,23 +140,13 @@ public:
         }
     }
 
-    const Tokens &Result() const {
-        return m_result;
-    }
-
 private:
-    bool EndOfExperssion() const {
-        return *m_current == L'\0';
-    }
-
     bool IsNumber() const {
         return iswdigit(*m_current) != 0;
     }
 
     void ScanNumber() {
-        wchar_t *end = nullptr;
-        m_result.emplace_back(wcstod(m_current, &end));
-        m_current = end;
+        AddToResult(wcstod(m_current, const_cast<wchar_t **>(&m_current)));
     }
 
     bool IsOperator() const {
@@ -164,12 +156,12 @@ private:
 
     void ScanOperator() {
         switch(*m_current) {
-            case L'+': m_result.emplace_back(Operator::Plus); break;
-            case L'-': m_result.emplace_back(Operator::Minus); break;
-            case L'*': m_result.emplace_back(Operator::Mul); break;
-            case L'/': m_result.emplace_back(Operator::Div); break;
-            case L'(': m_result.emplace_back(Operator::LParen); break;
-            case L')': m_result.emplace_back(Operator::RParen); break;
+            case L'+': AddToResult(Operator::Plus); break;
+            case L'-': AddToResult(Operator::Minus); break;
+            case L'*': AddToResult(Operator::Mul); break;
+            case L'/': AddToResult(Operator::Div); break;
+            case L'(': AddToResult(Operator::LParen); break;
+            case L')': AddToResult(Operator::RParen); break;
             default: break;
         }
         MoveNext();
@@ -179,29 +171,19 @@ private:
         ++m_current;
     }
 
-    const wchar_t *m_current;
-    Tokens m_result;
+    const wchar_t *m_current = nullptr;
 };
 
-class UnaryOperatorMarker : TokenVisitor {
-public:
-    void Mark(const Tokens &tokens) {
-        for(const Token &token : tokens) token.Accept(*this);
-    }
-
-    const Tokens &Result() const {
-        return m_result;
-    }
-
+class UnaryOperatorMarker : public TokenVisitor, public WithTokensResult {
 private:
-    void Visit(Number num) override {
-        m_result.emplace_back(num);
+    void Visit(double num) override {
+        AddToResult(num);
         m_nextCanBeUnary = false;
     }
 
-    void Visit(Operator current) override {
-        m_result.emplace_back(m_nextCanBeUnary ? TryConvertToUnary(current) : current);
-        m_nextCanBeUnary = (current != Operator::RParen);
+    void Visit(Operator op) override {
+        AddToResult(m_nextCanBeUnary ? TryConvertToUnary(op) : op);
+        m_nextCanBeUnary = (op != Operator::RParen);
     }
 
     static Operator TryConvertToUnary(Operator op) {
@@ -213,50 +195,39 @@ private:
     }
 
     bool m_nextCanBeUnary = true;
-    Tokens m_result;
 };
-
 } // namespace Detail
 
-/// <summary>
-/// Convert the expression string to a sequence of tokens.
-/// </summary>
+// Convert the expression string to a sequence of tokens.
 inline Tokens Tokenize(const std::wstring &expression) {
-    Detail::Tokenizer tokenizer(expression);
-    tokenizer.Tokenize();
+    Detail::Tokenizer tokenizer;
+    tokenizer.Tokenize(expression);
     return tokenizer.Result();
 }
 
-/// <summary>
-/// Change binary pluses and minuses that are unary to unary operator tokens.
-/// </summary>
+// Change binary pluses and minuses that are unary to unary operator tokens.
 inline Tokens MarkUnaryOperators(const Tokens &tokens) {
     Detail::UnaryOperatorMarker marker;
-    marker.Mark(tokens);
+    marker.VisitAll(tokens.cbegin(), tokens.cend());
     return marker.Result();
 }
-
 } // namespace Lexer
 
 namespace Parser {
 
-inline int PrecedenceOf(const Token &token) {
-    if(token.EqualsTo(Operator::UMinus)) return 2;
-    if(token.EqualsTo(Operator::Mul) || token.EqualsTo(Operator::Div)) return 1;
+template<typename T> int PrecedenceOf(const T &token) {
+    if(token == Operator::UMinus) return 2;
+    if(token == Operator::Mul || token == Operator::Div) return 1;
     return 0;
 }
 
 namespace Detail {
 
-class ShuntingYardParser : TokenVisitor {
+class ShuntingYardParser : public TokenVisitor, private WithTokensResult {
 public:
-    void Parse(const Tokens &tokens) {
-        for(const Token &token : tokens) token.Accept(*this);
+    Tokens Result() {
         PopToOutputUntil([this]() { return StackHasNoOperators(); });
-    }
-
-    const Tokens &Result() const {
-        return m_output;
+        return WithTokensResult::Result();
     }
 
 private:
@@ -265,8 +236,6 @@ private:
             case Operator::UPlus:
                 break;
             case Operator::UMinus:
-                PushCurrentToStack(op);
-                break;
             case Operator::LParen:
                 PushCurrentToStack(op);
                 break;
@@ -275,89 +244,79 @@ private:
                 PopLeftParen();
                 break;
             default:
-                PopToOutputUntil([&]() { return LeftParenOnTop() || OperatorWithLessPrecedenceOnTop(op); });
+                PopToOutputUntil([this, op]() { return LeftParenOnTop() || OperatorWithLessPrecedenceOnTop(op); });
                 PushCurrentToStack(op);
                 break;
         }
     }
 
-    void Visit(Number num) override {
-        m_output.emplace_back(num);
+    void Visit(double num) override {
+        AddToResult(num);
     }
 
     bool StackHasNoOperators() const {
-        if(m_stack.back().EqualsTo(Operator::LParen)) throw std::logic_error("Closing paren not found.");
+        if(m_stack.back() == Operator::LParen) throw std::logic_error("Closing paren not found.");
         return false;
     }
 
     void PushCurrentToStack(Operator op) {
-        m_stack.emplace_back(op);
+        m_stack.push_back(MakeToken(op));
     }
 
     void PopLeftParen() {
-        if(m_stack.empty() || !m_stack.back().EqualsTo(Operator::LParen)) {
+        if(m_stack.empty() || !(m_stack.back() == Operator::LParen)) {
             throw std::logic_error("Opening paren not found.");
         }
         m_stack.pop_back();
     }
 
     bool OperatorWithLessPrecedenceOnTop(Operator op) const {
-        return PrecedenceOf(m_stack.back()) < PrecedenceOf(Token(op));
+        return PrecedenceOf(m_stack.back()) < PrecedenceOf(op);
     }
 
     bool LeftParenOnTop() const {
-        return m_stack.back().EqualsTo(Operator::LParen);
+        return m_stack.back() == Operator::LParen;
     }
 
     template <typename T>
     void PopToOutputUntil(T whenToEnd) {
         while(!m_stack.empty() && !whenToEnd()) {
-            m_output.push_back(m_stack.back());
+            AddToResult(m_stack.back());
             m_stack.pop_back();
         }
     }
 
-    Tokens m_output, m_stack;
+    Tokens m_stack;
 };
-
 } // namespace Detail
 
-/// <summary>
-/// Convert the sequence of tokens in infix notation to a sequence in postfix notation.
-/// </summary>
+// Convert the sequence of tokens in infix notation to a sequence in postfix notation.
 inline Tokens Parse(const Tokens &tokens) {
     Detail::ShuntingYardParser parser;
-    parser.Parse(tokens);
+    parser.VisitAll(tokens.cbegin(), tokens.cend());
     return parser.Result();
 }
-
 } // namespace Parser
 
 namespace Evaluator {
-
 namespace Detail {
 
-class StackEvaluator : TokenVisitor {
-    typedef std::vector<Number> Stack;
-    typedef Stack::const_iterator Args;
-
+class StackEvaluator : public TokenVisitor {
 public:
-    void Evaluate(const Tokens &tokens) {
-        for(const Token &token : tokens) token.Accept(*this);
-    }
-
-    Number Result() const {
-        return m_stack.empty() ? 0 : m_stack.back();
+    double Result() const {
+        return m_stack.empty() ? 0.0 : m_stack.back();
     }
 
 private:
-    template<typename T>
-    static auto MakeEvaluator(const size_t arity, T function) {
+    typedef std::vector<double> Stack;
+    typedef Stack::const_iterator Args;
+
+    template<typename T> static auto MakeEvaluator(const size_t arity, T function) {
         return [=](Stack &stack) {
             if(stack.size() < arity) throw std::logic_error("Not enough operands in stack.");
-            Args arguments = stack.cend() - arity;
-            Number result = function(arguments);
-            stack.erase(arguments, stack.cend());
+            Args argumentsOnStack = stack.cend() - arity;
+            double result = function(argumentsOnStack);
+            stack.erase(argumentsOnStack, stack.cend());
             stack.push_back(result);
         };
     }
@@ -373,31 +332,24 @@ private:
         evaluators.at(op)(m_stack);
     }
 
-    void Visit(Number num) override {
+    void Visit(double num) override {
         m_stack.push_back(num);
     }
 
     Stack m_stack;
 };
-
 } // namespace Detail
 
-/// <summary>
-/// Evaluate the sequence of tokens in postfix notation and get a numerical result.
-/// </summary>
+// Evaluate the sequence of tokens in postfix notation and get a numerical result.
 inline double Evaluate(const Tokens &tokens) {
     Detail::StackEvaluator evaluator;
-    evaluator.Evaluate(tokens);
+    evaluator.VisitAll(tokens.cbegin(), tokens.cend());
     return evaluator.Result();
 }
-
 } // namespace Evaluator
 
-/// <summary>
-/// Interpret the mathematical expression in infix notation and return a numerical result.
-/// </summary>
+// Interpret the mathematical expression in infix notation and return a numerical result.
 inline double InterpreteExperssion(const std::wstring &expression) {
-    return Evaluator::Evaluate(Parser::Parse(Lexer::Tokenize(expression)));
+    return Evaluator::Evaluate(Parser::Parse(Lexer::MarkUnaryOperators(Lexer::Tokenize(expression))));
 }
-
 } // namespace Interpreter
