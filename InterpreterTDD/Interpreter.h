@@ -12,17 +12,12 @@ enum class Operator {
 };
 
 inline std::wstring ToString(const Operator &op) {
-    switch(op) {
-        case Operator::Plus: return L"+";
-        case Operator::Minus: return L"-";
-        case Operator::Mul: return L"*";
-        case Operator::Div: return L"/";
-        case Operator::LParen: return L"(";
-        case Operator::RParen: return L")";
-        case Operator::UPlus: return L"Unary +";
-        case Operator::UMinus: return L"Unary -";
-        default: throw std::out_of_range("Operator.");
-    }
+    static const std::unordered_map<Operator, std::wstring> opmap{
+            { Operator::Plus, L"+" }, { Operator::Minus, L"-" },
+            { Operator::Mul, L"*" }, { Operator::Div, L"/" },
+            { Operator::LParen, L"(" }, { Operator::RParen, L")" },
+            { Operator::UPlus, L"u+" }, { Operator::UMinus, L"u-" } };
+    return opmap.at(op);
 }
 
 inline std::wstring ToString(const double &num) {
@@ -56,15 +51,17 @@ struct TokenConcept {
     }
 };
 
-inline std::wstring ToString(const std::shared_ptr<const TokenConcept> &token) {
+typedef std::shared_ptr<const TokenConcept> Token;
+
+inline std::wstring ToString(const Token &token) {
     return token->ToString();
 }
 
-inline bool operator==(const std::shared_ptr<const TokenConcept> &left, const std::shared_ptr<const TokenConcept> &right) {
+inline bool operator==(const Token &left, const Token &right) {
     return left->DispatchEquals(*right);
 }
 
-template<typename T> bool operator==(const std::shared_ptr<const TokenConcept> &left, T right) {
+template<typename T> bool operator==(const Token &left, const T &right) {
     return left->EqualsTo(right);
 }
 
@@ -91,7 +88,7 @@ template<typename T> struct GenericToken : TokenConcept {
 };
 } // namespace Detail
 
-typedef std::shared_ptr<const Detail::TokenConcept> Token;
+using Detail::Token;
 typedef std::vector<Token> Tokens;
 
 inline Token MakeToken(Operator value) {
@@ -109,6 +106,8 @@ public:
     }
 
 protected:
+    ~WithTokensResult() {}
+
     template<typename T> void AddToResult(T value) {
         m_result.push_back(MakeToken(value));
     }
@@ -135,7 +134,7 @@ public:
                 ScanOperator();
             }
             else {
-                MoveNext();
+                ++m_current;
             }
         }
     }
@@ -149,25 +148,21 @@ private:
         AddToResult(wcstod(m_current, const_cast<wchar_t **>(&m_current)));
     }
 
+    const static auto &CharToOperatorMap() {
+        static const std::unordered_map<wchar_t, Operator> opmap{
+                { L'+', Operator::Plus }, { L'-', Operator::Minus },
+                { L'*', Operator::Mul }, { L'/', Operator::Div },
+                { L'(', Operator::LParen }, { L')', Operator::RParen },
+        };
+        return opmap;
+    }
+
     bool IsOperator() const {
-        static const std::wstring all(L"+-*/()");
-        return all.find(*m_current) != std::wstring::npos;
+        return CharToOperatorMap().find(*m_current) != CharToOperatorMap().end();
     }
 
     void ScanOperator() {
-        switch(*m_current) {
-            case L'+': AddToResult(Operator::Plus); break;
-            case L'-': AddToResult(Operator::Minus); break;
-            case L'*': AddToResult(Operator::Mul); break;
-            case L'/': AddToResult(Operator::Div); break;
-            case L'(': AddToResult(Operator::LParen); break;
-            case L')': AddToResult(Operator::RParen); break;
-            default: break;
-        }
-        MoveNext();
-    }
-
-    void MoveNext() {
+        AddToResult(CharToOperatorMap().at(*m_current));
         ++m_current;
     }
 
@@ -187,11 +182,9 @@ private:
     }
 
     static Operator TryConvertToUnary(Operator op) {
-        switch(op) {
-            case Operator::Plus: return Operator::UPlus;
-            case Operator::Minus: return Operator::UMinus;
-            default: return op;
-        }
+        if(op == Operator::Plus) return Operator::UPlus;
+        if(op == Operator::Minus) return Operator::UMinus;
+        return op;
     }
 
     bool m_nextCanBeUnary = true;
@@ -264,9 +257,7 @@ private:
     }
 
     void PopLeftParen() {
-        if(m_stack.empty() || !(m_stack.back() == Operator::LParen)) {
-            throw std::logic_error("Opening paren not found.");
-        }
+        if(m_stack.empty() || !LeftParenOnTop()) throw std::logic_error("Opening paren not found.");
         m_stack.pop_back();
     }
 
@@ -308,12 +299,12 @@ public:
     }
 
 private:
-    typedef std::vector<double> Stack;
-    typedef Stack::const_iterator Args;
+    typedef std::vector<double> OpStack;
+    typedef OpStack::const_iterator Args;
 
     template<typename T> static auto MakeEvaluator(const size_t arity, T function) {
-        return [=](Stack &stack) {
-            if(stack.size() < arity) throw std::logic_error("Not enough operands in stack.");
+        return [=](OpStack &stack) {
+            if(stack.size() < arity) throw std::logic_error("Not enough arguments in stack.");
             Args argumentsOnStack = stack.cend() - arity;
             double result = function(argumentsOnStack);
             stack.erase(argumentsOnStack, stack.cend());
@@ -322,7 +313,7 @@ private:
     }
 
     void Visit(Operator op) override {
-        const static std::unordered_map<Operator, std::function<void(Stack &)>> evaluators{
+        const static std::unordered_map<Operator, std::function<void(OpStack &)>> evaluators{
                 { Operator::Plus, MakeEvaluator(2, [=](Args a) { return a[0] + a[1]; }) },
                 { Operator::Minus, MakeEvaluator(2, [=](Args a) { return a[0] - a[1]; }) },
                 { Operator::Mul, MakeEvaluator(2, [=](Args a) { return a[0] * a[1]; }) },
@@ -336,7 +327,7 @@ private:
         m_stack.push_back(num);
     }
 
-    Stack m_stack;
+    OpStack m_stack;
 };
 } // namespace Detail
 
